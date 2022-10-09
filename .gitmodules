@@ -1,3 +1,0 @@
-[submodule "components"]
-	path = components
-	url = git@github.com:smartknob-ha/sdk.git
