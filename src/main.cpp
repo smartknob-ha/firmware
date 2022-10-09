@@ -5,7 +5,9 @@
 #include "esp_spi_flash.h"
 
 
-int main()
+extern "C" {
+
+void app_main(void)
 {
     printf("Hello world!\n");
 
@@ -29,6 +31,6 @@ int main()
     printf("Restarting now.\n");
     fflush(stdout);
     esp_restart();
+}
 
-    return 0;
 }
