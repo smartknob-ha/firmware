@@ -17,6 +17,7 @@ _deps
 .clang_complete
 .gcc-flags.json
 .pio
+build
 
 # Vscode files
 .vscode
