@@ -1,4 +1,3 @@
-[submodule "Folder/master"]
-    path = components/sdk
-    url = git@github.com:smartknob-ha/sdk.git
-    branch = main
+[submodule "components/sdk"]
+	path = components/sdk
+	url = git@github.com:smartknob-ha/sdk.git
