@@ -4,4 +4,4 @@ list(APPEND EXTRA_COMPONENT_DIRS "sdk")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-project("Smartknob-HA-integration")
+project("Smartknob-HA")
