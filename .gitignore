@@ -21,6 +21,7 @@ build
 
 # Vscode files
 .vscode
+*.code-workspace
 
 # ESP-IDF sdkconfig
 sdkconfig.*
