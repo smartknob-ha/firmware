@@ -1,0 +1,107 @@
+@startuml diagram
+skinparam linetype ortho
+skinparam ranksep 25
+
+!function $combineString($a, $b)
+    !return $a + $b
+!endfunction
+
+note top of component: Maybe settings is better \n off as an atomic
+interface component {
+    - settings& m_settings
+    + void initialize()
+    + void start()
+    + void stop()
+    + void status()
+}
+
+!procedure $addGenericComponent($name)
+    !local interfaceName = $combineString("i_", $name)
+    !local realClassName = $combineString("r_", $name)
+    !local mockClassName = $combineString("f_", $name)
+    interface interfaceName
+    class realClassName
+    class mockClassName
+    interfaceName --> realClassName
+    interfaceName --> mockClassName
+    component --> interfaceName
+!endprocedure 
+
+$addGenericComponent("motor")
+interface i_motor {
+    + void playHaptic(bool press)
+    + void runCalibration()
+}
+
+$addGenericComponent("ambient_sensor")
+interface i_ambient_sensor {
+    + int get_light_level()
+}
+
+$addGenericComponent("magnetic_encoder")
+interface i_magnetic_encoder {
+    - float x
+    - float y
+    + float get_sensor_angle()
+}
+
+$addGenericComponent("strain_sensor")
+interface i_strain_sensor {
+    + float get_reading()
+    - void run_calibrate() 
+}
+
+$addGenericComponent("home_assistant")
+interface i_home_assistant {
+    void registerView()
+}
+
+class component_manager {
+    - component components[]
+    + void start()
+}
+component_manager --> component
+
+class network_manager
+class wifi_station {
+
+}
+class wifi_access_point
+
+network_manager --> wifi_access_point
+network_manager --> wifi_station
+
+note left of i_wifi_driver: This exists to ease access\nto the IDF WiFi library and\nto improve testability of network code
+interface i_wifi_driver {
+    + void set_security()
+    + void set_mode()
+    + void set_ssid(string)
+    + void set_psk(string)
+    + void connect()
+}
+
+class r_wifi_driver
+class f_wifi_driver
+
+i_wifi_driver --> r_wifi_driver
+i_wifi_driver --> f_wifi_driver
+wifi_access_point --> i_wifi_driver
+wifi_station --> i_wifi_driver
+
+note left of system: What this looks like is undecided right now
+class system
+class settings
+class ui_manager
+class display {
+    + set_brightness(uint16_t level)
+}
+
+system --> network_manager
+system --> component_manager
+system --> ui_manager
+system --> settings
+
+ui_manager --> display
+
+
+@enduml
