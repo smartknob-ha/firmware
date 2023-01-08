@@ -15,9 +15,11 @@ void start_smartknob(void) {
 
 extern "C" {
 
-void app_main(void)
-{
+void app_main(void) {
     printf("Hello world!\n");
+
+    printf("Sleeping for 5 seconds before boot...");
+    sleep(5);
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -35,4 +37,4 @@ void app_main(void)
     start_smartknob();
 }
 
-}
+} /* extern "C" */
