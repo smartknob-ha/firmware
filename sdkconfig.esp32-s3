@@ -1618,33 +1618,14 @@ CONFIG_WPA_MBEDTLS_TLS_CLIENT=y
 # end of Supplicant
 
 #
-# LED strip
-#
-CONFIG_LED_STRIP_FLUSH_TIMEOUT=1000
-CONFIG_LED_STRIP_PAUSE_LENGTH=50
-# end of LED strip
-
-#
 # Smartknob-HA Components
 #
 
 #
 # Manager
 #
-CONFIG_NUM_COMPONENTS=1
+CONFIG_NUM_COMPONENTS=4
 # end of Manager
-
-#
-# Smartknob ring LEDs
-#
-CONFIG_LED_STRIP_GPIO=17
-CONFIG_LED_STRIP_NUM=8
-CONFIG_LED_RMT_CHANNEL=0
-CONFIG_SK6812=y
-# CONFIG_WS2812 is not set
-# CONFIG_APA106 is not set
-# CONFIG_SM16703 is not set
-# end of Smartknob ring LEDs
 # end of Smartknob-HA Components
 
 #
@@ -1696,6 +1677,13 @@ CONFIG_I2CDEV_TIMEOUT=1000
 # end of I2C
 
 #
+# LED strip
+#
+CONFIG_LED_STRIP_FLUSH_TIMEOUT=1000
+CONFIG_LED_STRIP_PAUSE_LENGTH=50
+# end of LED strip
+
+#
 # LED strip SPI
 #
 CONFIG_LED_STRIP_SPI_USING_SK9822=y
@@ -1714,6 +1702,23 @@ CONFIG_MCP23X17_IFACE_I2C=y
 #
 CONFIG_ONEWIRE_CRC8_TABLE=y
 # end of OneWire
+
+#
+# Smartknob Config
+#
+
+#
+# Smartknob ring LEDs
+#
+CONFIG_LED_STRIP_GPIO=17
+CONFIG_LED_STRIP_NUM=8
+CONFIG_LED_RMT_CHANNEL=0
+CONFIG_SK6812=y
+# CONFIG_WS2812 is not set
+# CONFIG_APA106 is not set
+# CONFIG_SM16703 is not set
+# end of Smartknob ring LEDs
+# end of Smartknob Config
 # end of Component config
 
 # Deprecated options for backward compatibility

@@ -1,0 +1,24 @@
+menu "Smartknob ring LEDs"
+    config LED_STRIP_GPIO
+        int "GPIO number for LED data"
+        default 17
+    config LED_STRIP_NUM
+        int "Number of LED's in strip"
+        default 8
+    config LED_RMT_CHANNEL
+        int "What RMT channel to use for the LED's"
+        default 0
+    choice BOARD_TYPE
+        prompt "LED Type"
+        default SK6812
+    
+        config SK6812
+            bool "SK6812"
+        config WS2812
+            bool "WS2812"
+        config APA106
+            bool "APA106"
+        config SM16703
+            bool "SM16703"
+	endchoice
+endmenu

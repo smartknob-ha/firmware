@@ -6,17 +6,16 @@
 #include <inttypes.h>
 #include "esp_log.h"
 
+#include "../sdk/mock_component/include/mock_component.hpp"
+#include "../sdk/manager/include/manager.hpp"
 
-#include "mock_component.hpp"
-#include "../sdk/led_strip/include/led_strip.hpp"
-#include "manager.hpp"
-
+#include "ring_lights.hpp"
 
 void start_smartknob(void) {
     static sdk::mock_component mock_component_;
     sdk::manager::instance().add_component(mock_component_);
-    static sdk::ring_lights ring_light_;
-    sdk::manager::instance().add_component(ring_light_);
+    static sdk::ring_lights ring_lights_;
+    sdk::manager::instance().add_component(ring_lights_);
 
     sdk::manager::instance().start();
 }
