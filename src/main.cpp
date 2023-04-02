@@ -6,13 +6,18 @@
 #include <inttypes.h>
 #include "esp_log.h"
 
-#include "../sdk/manager/include/manager.hpp"
-#include "../sdk/mock_component/include/mock_component.hpp"
-//#include "../sdk/led_strip/include/led_strip.hpp"
+
+#include "mock_component.hpp"
+#include "../sdk/led_strip/include/led_strip.hpp"
+#include "manager.hpp"
+
 
 void start_smartknob(void) {
-    static sdk::mock_component test_component;
-    sdk::manager::instance().add_component(test_component);
+    static sdk::mock_component mock_component_;
+    sdk::manager::instance().add_component(mock_component_);
+    static sdk::ring_lights ring_light_;
+    sdk::manager::instance().add_component(ring_light_);
+
     sdk::manager::instance().start();
 }
 
@@ -46,13 +51,7 @@ void app_main(void) {
 
     printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
 
-    for (int i = 10; i >= 0; i--) {
-        printf("Restarting in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
+    start_smartknob();
 }
 
 }
