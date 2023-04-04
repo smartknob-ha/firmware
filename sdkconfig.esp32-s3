@@ -1710,13 +1710,14 @@ CONFIG_ONEWIRE_CRC8_TABLE=y
 #
 # Smartknob ring LEDs
 #
-CONFIG_LED_STRIP_GPIO=17
+CONFIG_LED_STRIP_GPIO=9
 CONFIG_LED_STRIP_NUM=8
 CONFIG_LED_RMT_CHANNEL=0
 CONFIG_SK6812=y
 # CONFIG_WS2812 is not set
 # CONFIG_APA106 is not set
 # CONFIG_SM16703 is not set
+CONFIG_LED_STRIP_REFRESH_RATE=60
 # end of Smartknob ring LEDs
 # end of Smartknob Config
 # end of Component config

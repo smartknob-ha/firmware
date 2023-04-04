@@ -53,6 +53,10 @@ class ring_lights : public component {
     private:
         static const inline char TAG[] = "LED Strip";
         COMPONENT_STATUS m_status = UNINITIALIZED;
+        bool m_run = false;
+
+        static void start_flush(void*);
+        void flush();
 
         inline static led_strip_t m_strip = {
             .type = LED_TYPE,

@@ -1,7 +1,7 @@
 menu "Smartknob ring LEDs"
     config LED_STRIP_GPIO
         int "GPIO number for LED data"
-        default 17
+        default 9
     config LED_STRIP_NUM
         int "Number of LED's in strip"
         default 8
@@ -11,7 +11,7 @@ menu "Smartknob ring LEDs"
     choice BOARD_TYPE
         prompt "LED Type"
         default SK6812
-    
+
         config SK6812
             bool "SK6812"
         config WS2812
@@ -21,4 +21,7 @@ menu "Smartknob ring LEDs"
         config SM16703
             bool "SM16703"
 	endchoice
+    config LED_STRIP_REFRESH_RATE
+        int "How many times should the LED strip buffer be flushed, per second"
+        default 60
 endmenu
