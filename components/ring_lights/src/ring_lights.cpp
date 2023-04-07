@@ -19,11 +19,8 @@ res ring_lights::initialize() {
     }
 
     ESP_LOGI(TAG, "Starting ring lights");
-
     m_run = true;
-
     xTaskCreate(start_flush, "ring lights", 4096, this, 99, NULL);
-
     return Ok(INITIALIZING);
 }
 
@@ -35,8 +32,11 @@ void ring_lights::start_flush(void* _this) {
 void ring_lights::flush() {
     ESP_LOGI(TAG, "Hello from ring lights thread!");
     uint8_t i = 0;
-    uint8_t j = 1;
     while (m_run) {
+        // This creates a rainbow animation at 60FPS
+        // Obviously temporary until
+        // https://github.com/smartknob-ha/sdk/issues/13
+        // has been closed
         i ++;
         hsv_t color {
             .hue = i,
@@ -49,7 +49,7 @@ void ring_lights::flush() {
         if (err) {
             ESP_LOGE(TAG, "Failed to flush led strip");
         }
-        vTaskDelay(pdMS_TO_TICKS(16));
+        vTaskDelay(pdMS_TO_TICKS(FLUSH_TASK_DELAY_MS));
     }
 }
 

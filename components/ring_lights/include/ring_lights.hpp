@@ -2,21 +2,6 @@
 #define LED_STRIP_HPP
 
 #include <led_strip.h>
-// #include <lib8tion.h>
-// #include <framebuffer.h>
-// #include <fbanimation.h>
-
-// #include <effects/noise.h>
-// #include <effects/plasma_waves.h>
-// #include <effects/rainbow.h>
-// #include <effects/waterfall.h>
-// #include <effects/dna.h>
-// #include <effects/rays.h>
-// #include <effects/crazybees.h>
-// #include <effects/sparkles.h>
-// #include <effects/matrix.h>
-// #include <effects/rain.h>
-// #include <effects/fire.h>
 
 #include "component.hpp"
 
@@ -69,7 +54,6 @@ class ring_lights : public component {
         };
 
         int m_color_i = 0;
-
 };
 
 } /* namespace sdk */
