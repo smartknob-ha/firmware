@@ -1,0 +1,36 @@
+#ifndef EFFECTS_HPP
+#define EFFECTS_HPP
+
+#include <led_strip.h>
+
+#include "declarations.hpp"
+
+namespace ring_lights {
+
+class effects {
+    public:
+        static void pointer(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg);
+        static void percent(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
+        static void fill(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
+        static void gradient(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
+        static void skip(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
+        static void rainbow_uniform(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg);
+
+        static effect_func get(ring_light_effect effect) { return m_mapper[effect]; };
+    private:
+        static const inline char TAG[] = "Ring light effects";
+        static inline const etl::array<effect_func, EFFECT_MAX> m_mapper {
+            &effects::pointer,
+            &effects::percent,
+            &effects::fill,
+            &effects::gradient,
+            &effects::skip,
+            &effects::rainbow_uniform
+        };
+
+        static void set_led_color(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], uint8_t index, rgb_t color);
+};
+
+}; /* namespace ring_lights */
+
+#endif // EFFECTS_HPP
