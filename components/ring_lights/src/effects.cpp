@@ -15,26 +15,27 @@ void effects::pointer(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& ms
     for (uint8_t i = 0; i < led_to_turn_on; i ++) {
         set_led_color(buffer, i, {0, 0, 0});
     }
-    set_led_color(buffer, led_to_turn_on, hsv2rgb_raw(msg.primary_color));
-    for (uint8_t i = led_to_turn_on+1; i < NUM_LEDS; i ++) {
-        set_led_color(buffer, i, {0, 0, 0});
+
+void effects::fill(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg) {
+	for (int_fast8_t i = 0; i < NUM_LEDS; i++) {
+		buffer[i] = hsv2rgb_rainbow(msg.primary_color);
     }
 }
 
-void effects::rainbow_uniform(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {
+void effects::rainbow_uniform(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg) {
     static uint8_t i = 0;
     i ++;
     hsv_t color {
         .hue = i,
-        .saturation = 255,
-        .value = 255
+		.saturation = msg.primary_color.saturation,
+		.value = msg.primary_color.value
     };
 
     rgb_t rgb = hsv2rgb_rainbow(color);
 
     // Give all LED's the same colour
     for (int i = 0; i < NUM_LEDS; i ++) {
-        set_led_color(buffer, i, rgb);
+		buffer[i] = rgb;
     }
 }
 

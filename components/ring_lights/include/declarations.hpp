@@ -46,7 +46,7 @@ struct effect_msg {
     hsv_t primary_color{0, 0, 0}, secondary_color{0, 0, 0};
 };
 
-typedef void (*effect_func)(uint8_t (&)[RING_LIGHTS_BUFFER_SIZE], effect_msg&);
+typedef void (*effect_func)(rgb_t (&)[NUM_LEDS], effect_msg&);
 
 }; /* namespace ring_lights */
 

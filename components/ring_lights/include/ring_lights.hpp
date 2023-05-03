@@ -21,7 +21,7 @@ namespace ring_lights {
     #error Please define a valid LED type using menuconfig
 #endif
 
-class ring_lights : public component, public has_queue<1, effect_msg> {
+class ring_lights : public component, public has_queue<1, effect_msg, 0> {
     public:
         ring_lights() {};
         ~ring_lights() = default;
@@ -35,8 +35,8 @@ class ring_lights : public component, public has_queue<1, effect_msg> {
 
     private:
         static const inline char TAG[] = "Ring lights";
-        uint8_t m_current_effect_buffer[RING_LIGHTS_BUFFER_SIZE];
-        uint8_t m_new_effect_buffer[RING_LIGHTS_BUFFER_SIZE];
+        rgb_t m_current_effect_buffer[NUM_LEDS];
+        rgb_t m_new_effect_buffer[NUM_LEDS];
 
         COMPONENT_STATUS m_status = UNINITIALIZED;
         bool m_run = false;
@@ -54,8 +54,7 @@ class ring_lights : public component, public has_queue<1, effect_msg> {
 
         static void start_flush(void*);
         void flush_thread();
-        void transition_effect(uint8_t(&current_effect_buffer)[RING_LIGHTS_BUFFER_SIZE],
-                                uint8_t(&new_effect_buffer)[RING_LIGHTS_BUFFER_SIZE]);
+        void transition_effect();
 
         effect_func m_current_effect_func_p = &effects::rainbow_uniform;
         effect_func m_new_effect_func_p = &effects::rainbow_uniform;

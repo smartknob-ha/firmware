@@ -9,12 +9,12 @@ namespace ring_lights {
 
 class effects {
     public:
-        static void pointer(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg);
-        static void percent(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
-        static void fill(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
-        static void gradient(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
-        static void skip(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg) {};
-        static void rainbow_uniform(uint8_t (&buffer)[RING_LIGHTS_BUFFER_SIZE], effect_msg& msg);
+			static void pointer(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg);
+			static void percent(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg) {};
+			static void fill(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg);
+			static void gradient(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg) {};
+			static void skip(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg) {};
+			static void rainbow_uniform(rgb_t (&buffer)[NUM_LEDS], effect_msg& msg);
 
         static effect_func get(ring_light_effect effect) { return m_mapper[effect]; };
     private:

@@ -43,14 +43,11 @@ namespace ring_lights {
 				ESP_LOGI(TAG, "m_effect_transition_ticks_left: %lu", m_effect_transition_ticks_left);
 				// Fill new_effect_buffer, merge with current effect buffer
 				m_new_effect_func_p(m_new_effect_buffer, m_new_effect);
-				transition_effect(m_current_effect_buffer, m_new_effect_buffer);
+				transition_effect();
 				ESP_LOGI(TAG, "Transition to new effect");
 			}
 
-			for (uint8_t i = 0; i < RING_LIGHTS_BUFFER_SIZE; i++) {
-				m_strip.buf[i] = m_current_effect_buffer[i];
-			}
-
+			led_strip_set_pixels(&m_strip, 0, NUM_LEDS, m_current_effect_buffer);
 			esp_err_t err = led_strip_flush(&m_strip);
 			if (err) {
 				ESP_LOGE(TAG, "Failed to flush led strip");
@@ -59,21 +56,22 @@ namespace ring_lights {
 		}
 	}
 
-	void ring_lights::transition_effect(
-		uint8_t (&current_effect_buffer)[RING_LIGHTS_BUFFER_SIZE],
-		uint8_t (&new_effect_buffer)[RING_LIGHTS_BUFFER_SIZE]) {
+	void ring_lights::transition_effect() {
 		// As time goes on, the values in the new_effect_buffer will be weighted more
 		// heavily. This is nonlinear because human eyes aren't either.
 		double transition_progress = ((double)EFFECT_TRANSITION_TICKS - m_effect_transition_ticks_left) / (double)EFFECT_TRANSITION_TICKS * 100;
 		transition_progress = std::max((double)0, (std::log(transition_progress) / 2) + 1);
 		ESP_LOGI(TAG, "transition_progress %f - %lu", transition_progress, m_effect_transition_ticks_left);
 
+		uint8_t (&l_current_effect_buffer)[RING_LIGHTS_BUFFER_SIZE] = reinterpret_cast<uint8_t(&)[RING_LIGHTS_BUFFER_SIZE]>(m_current_effect_buffer);
+		uint8_t (&l_new_effect_buffer)[RING_LIGHTS_BUFFER_SIZE] = reinterpret_cast<uint8_t(&)[RING_LIGHTS_BUFFER_SIZE]>(m_new_effect_buffer);
+
 		for (uint8_t i = 0; i < RING_LIGHTS_BUFFER_SIZE; i ++) {
-			volatile uint8_t abs_dif = abs(m_current_effect_buffer[i] - m_new_effect_buffer[i]) * transition_progress;
-			if (m_current_effect_buffer[i] > m_new_effect_buffer[i]) {
-				m_current_effect_buffer[i] = m_current_effect_buffer[i] - abs_dif;
+			volatile uint8_t abs_dif = abs(l_current_effect_buffer[i] - l_new_effect_buffer[i]) * transition_progress;
+			if (l_current_effect_buffer[i] > l_new_effect_buffer[i]) {
+				l_current_effect_buffer[i] = l_current_effect_buffer[i] - abs_dif;
 			} else {
-				m_current_effect_buffer[i] = m_current_effect_buffer[i] + abs_dif;
+				l_current_effect_buffer[i] = l_current_effect_buffer[i] + abs_dif;
 			}
 		}
 		if (--m_effect_transition_ticks_left == 0) {
@@ -89,12 +87,11 @@ namespace ring_lights {
 		effect_msg tmp;
 
 		if (xQueueReceive(m_queue, (void *)&tmp, 0) == pdTRUE) {
-			ESP_LOGI(TAG, "tmp.effect: %d current_effect: %d new_effect: %d", tmp.effect, m_current_effect.effect, m_new_effect.effect);
 			if (tmp.effect == m_current_effect.effect) {
-				ESP_LOGI(TAG, "Current effect update received!");
+				ESP_LOGD(TAG, "Current effect update received!");
 				m_current_effect = tmp;
 			} else if (tmp.effect == m_new_effect.effect) {
-				ESP_LOGI(TAG, "New effect update received!");
+				ESP_LOGD(TAG, "New effect update received!");
 				m_new_effect = tmp;
 			} else if (tmp.effect != m_current_effect.effect) {
 				ESP_LOGI(TAG, "New effect received: %d, current effect %d", tmp.effect,
