@@ -25,8 +25,8 @@ void rainbow_anim_test(void*) {
 		.effect = ring_lights::RAINBOW_UNIFORM,
 		.param_a = 0,
 		.param_b = 0,
-		.primary_color = {0,0,0},
-		.secondary_color = {0,0,0}
+		.primary_color = {0,255,255},
+		.secondary_color = {0,255,255}
 	};
 
 	while (true) {
@@ -52,14 +52,21 @@ void start_smartknob(void) {
 	xTaskCreate(rainbow_anim_test, "rainbow-anim-test", 4096, 0, 99, NULL);
 
 	sdk::manager::instance().start();
-	msg.primary_color = {0, 0, 128};
+	msg.primary_color = {HUE_BLUE, 0, 255};
 	msg.effect = ring_lights::POINTER;
+	msg.param_b = 120;
 	ring_lights_.enqueue(msg);
 	while (true) {
-		for (uint16_t angle = 0; angle <= 360; angle += 45) {
+		for (int16_t angle = 360; angle >= -360; angle -= 3) {
 			msg.param_a = angle;
 			ring_lights_.enqueue(msg);
-			vTaskDelay(pdMS_TO_TICKS(1000));
+			vTaskDelay(pdMS_TO_TICKS(1000/CONFIG_LED_STRIP_REFRESH_RATE));
+		}
+
+		for (int16_t angle = 0; angle <= 720; angle += 3) {
+			msg.param_a = angle;
+			ring_lights_.enqueue(msg);
+			vTaskDelay(pdMS_TO_TICKS(1000/CONFIG_LED_STRIP_REFRESH_RATE));
 		}
 
 		vTaskDelay(pdMS_TO_TICKS(13000));
