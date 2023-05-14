@@ -60,20 +60,13 @@ namespace ring_lights {
 		// As time goes on, the values in the new_effect_buffer will be weighted more
 		// heavily. This is nonlinear because human eyes aren't either.
 		double transition_progress = ((double)EFFECT_TRANSITION_TICKS - m_effect_transition_ticks_left) / (double)EFFECT_TRANSITION_TICKS * 100;
-		transition_progress = std::max((double)0, (std::log(transition_progress) / 2) + 1);
+		transition_progress = std::max((double)0, (std::log(transition_progress) / 2) + 1) * 255;
 		ESP_LOGI(TAG, "transition_progress %f - %lu", transition_progress, m_effect_transition_ticks_left);
 
-		uint8_t (&l_current_effect_buffer)[RING_LIGHTS_BUFFER_SIZE] = reinterpret_cast<uint8_t(&)[RING_LIGHTS_BUFFER_SIZE]>(m_current_effect_buffer);
-		uint8_t (&l_new_effect_buffer)[RING_LIGHTS_BUFFER_SIZE] = reinterpret_cast<uint8_t(&)[RING_LIGHTS_BUFFER_SIZE]>(m_new_effect_buffer);
-
-		for (uint8_t i = 0; i < RING_LIGHTS_BUFFER_SIZE; i ++) {
-			volatile uint8_t abs_dif = abs(l_current_effect_buffer[i] - l_new_effect_buffer[i]) * transition_progress;
-			if (l_current_effect_buffer[i] > l_new_effect_buffer[i]) {
-				l_current_effect_buffer[i] = l_current_effect_buffer[i] - abs_dif;
-			} else {
-				l_current_effect_buffer[i] = l_current_effect_buffer[i] + abs_dif;
-			}
+		for (uint8_t i = 0; i < NUM_LEDS; i ++) {
+			m_current_effect_buffer[i] = rgb_blend(m_current_effect_buffer[i], m_new_effect_buffer[i], transition_progress);
 		}
+
 		if (--m_effect_transition_ticks_left == 0) {
 			ESP_LOGI(TAG, "Transition finished!");
 			memcpy(&m_current_effect, &m_new_effect, sizeof(effect_msg));
