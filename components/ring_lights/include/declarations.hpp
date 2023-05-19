@@ -32,10 +32,9 @@ enum ring_light_effect {
 	/*
 	* Fills a bar around the smartknob from start to percentage
 	*
-	* param_a: [int]  starting angle
-	* param_b: [int]  ending angle
-	* param_c: [int]  percentage
-	* param_d: [bool] (counter) clockwise drawing
+	* param_a: [int]  starting angle, between 180 and 359
+	* param_b: [int]  ending angle, between 0 and 179
+	* param_c: [int]  percentage from 0 to 100
 	*
 	* primary_color: base color
 	* secondary_color: gradient color if provided (any non-zero)
@@ -85,7 +84,7 @@ enum ring_light_effect {
 
 struct effect_msg {
 	ring_light_effect effect = RAINBOW_UNIFORM;
-	uint16_t param_a = 0, param_b = 0, param_c = 0, param_d = 0;
+	int16_t param_a = 0, param_b = 0, param_c = 0;
 	hsv_t primary_color{0, 0, 0}, secondary_color{0, 0, 0};
 };
 
