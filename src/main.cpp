@@ -10,66 +10,38 @@
 #include "../sdk/manager/include/manager.hpp"
 
 #include "ring_lights.hpp"
-#include "effects.hpp"
-#include "declarations.hpp"
-
-// Lots of ring lights demo code in here until
-// we actually have a UI director thing
-
-static ring_lights::ring_lights ring_lights_;
-
-
-void rainbow_anim_test(void*) {
-	ESP_LOGI("main", "hello from rainbow_anim_test!");
-	ring_lights::effect_msg msg {
-		.effect = ring_lights::RAINBOW_UNIFORM,
-		.param_a = 0,
-		.param_b = 0,
-		.primary_color = {0,255,255},
-		.secondary_color = {0,255,255}
-	};
-
-	while (true) {
-		vTaskDelay(pdMS_TO_TICKS(10000));
-		ring_lights_.enqueue(msg);
-	}
-}
 
 void start_smartknob(void) {
-	// static sdk::mock_component mock_component_;
-	// sdk::manager::instance().add_component(mock_component_);
+
+	ring_lights::ring_lights ring_lights_;
 	sdk::manager::instance().add_component(ring_lights_);
 
-	ring_lights::effect_msg msg {
-		.effect = ring_lights::RAINBOW_UNIFORM,
-		.param_a = 0,
-		.param_b = 0,
-		.primary_color = {0,0,0},
-		.secondary_color = {0,0,0}
-	};
-
-	ring_lights_.enqueue(msg);
-	xTaskCreate(rainbow_anim_test, "rainbow-anim-test", 4096, 0, 99, NULL);
-
 	sdk::manager::instance().start();
-	msg.primary_color = {HUE_BLUE, 0, 255};
-	msg.effect = ring_lights::POINTER;
-	msg.param_b = 120;
+
+	// This is here for show, remove it if you want
+	ring_lights::effect_msg msg;
+	msg.primary_color = {HUE_AQUA, 255, 200};
+	msg.effect = ring_lights::PERCENT;
+	msg.param_a = 210;
+	msg.param_b = 180;
 	ring_lights_.enqueue(msg);
+
 	while (true) {
-		for (int16_t angle = 360; angle >= -360; angle -= 3) {
-			msg.param_a = angle;
+		for (int16_t percent = 0; percent <= 100; percent += 1) {
+			msg.param_c = percent;
 			ring_lights_.enqueue(msg);
 			vTaskDelay(pdMS_TO_TICKS(1000/CONFIG_LED_STRIP_REFRESH_RATE));
 		}
 
-		for (int16_t angle = 0; angle <= 720; angle += 3) {
-			msg.param_a = angle;
+		vTaskDelay(pdMS_TO_TICKS(3000));
+
+		for (int16_t percent = 100; percent >= 0; percent -= 1) {
+			msg.param_c = percent;
 			ring_lights_.enqueue(msg);
 			vTaskDelay(pdMS_TO_TICKS(1000/CONFIG_LED_STRIP_REFRESH_RATE));
 		}
 
-		vTaskDelay(pdMS_TO_TICKS(13000));
+		vTaskDelay(pdMS_TO_TICKS(3000));
 	}
 }
 
