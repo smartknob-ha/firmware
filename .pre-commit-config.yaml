@@ -1,0 +1,10 @@
+---
+fail_fast: false
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v2.3.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        # Based off of https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines
+        args: ["build", "ci", "docs", "feat", "fix", "perf", "refactor", "style", "test"]
