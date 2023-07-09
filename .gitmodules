@@ -1,5 +1,5 @@
 [submodule "components/sdk"]
-	path = sdk
+	path = lib/sdk
 	url = git@github.com:smartknob-ha/sdk.git
 [submodule "lib/esp-idf-lib"]
 	path = lib/esp-idf-lib
