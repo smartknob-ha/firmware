@@ -51,8 +51,9 @@ enum ring_light_effect {
 	/*  -- NOT IMPLEMENTED --
 	* Static gradient
 	*
-	* param_a: [int]  starting angle
-	* param_b: [int]  gradient direction
+	* param_a: [int]  gradient angle, between 0 and 359
+	* param_b: [int]  gradient width, between 0 and 100 (percent)
+	* param_c: [int]  gradient center, between 0 and 100 (percent) (0 corresponding to the bottom and 100 to the top)
 	*
 	* primary_color: base color
 	* secondary color: gradient color
@@ -88,7 +89,7 @@ struct effect_msg {
 	hsv_t primary_color{0, 0, 0}, secondary_color{0, 0, 0};
 };
 
-typedef void (*effect_func)(rgb_t (&)[NUM_LEDS], effect_msg&);
+typedef void (* effect_func)(rgb_t (&)[NUM_LEDS], effect_msg&);
 
 }; /* namespace ring_lights */
 

@@ -20,28 +20,33 @@ void start_smartknob(void) {
 
 	// This is here for show, remove it if you want
 	ring_lights::effect_msg msg;
-	msg.primary_color = {HUE_AQUA, 255, 200};
-	msg.effect = ring_lights::PERCENT;
-	msg.param_a = 210;
-	msg.param_b = 180;
+	msg.primary_color = {.hue = HUE_AQUA, .saturation = 255, .value = 200};
+	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
+	msg.effect = ring_lights::GRADIENT;
+	msg.param_a = 0;
+	msg.param_b = 75;
+	msg.param_c = 75;
 	ring_lights_.enqueue(msg);
 
+
+	bool flipflop = true;
 	while (true) {
-		for (int16_t percent = 0; percent <= 100; percent += 1) {
-			msg.param_c = percent;
-			ring_lights_.enqueue(msg);
-			vTaskDelay(pdMS_TO_TICKS(1000/CONFIG_LED_STRIP_REFRESH_RATE));
+
+		if (flipflop) {
+			msg.param_b -= 10;
+			if (msg.param_b == 0) {
+				flipflop = false;
+			}
+		} else {
+			msg.param_b += 10;
+			if (msg.param_b == 100) {
+				flipflop = true;
+			}
 		}
 
-		vTaskDelay(pdMS_TO_TICKS(3000));
+		ring_lights_.enqueue(msg);
 
-		for (int16_t percent = 100; percent >= 0; percent -= 1) {
-			msg.param_c = percent;
-			ring_lights_.enqueue(msg);
-			vTaskDelay(pdMS_TO_TICKS(1000/CONFIG_LED_STRIP_REFRESH_RATE));
-		}
-
-		vTaskDelay(pdMS_TO_TICKS(3000));
+		vTaskDelay(pdMS_TO_TICKS(1000));
 	}
 }
 
