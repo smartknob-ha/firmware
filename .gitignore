@@ -29,3 +29,5 @@ sdkconfig.*
 !sdkconfig.esp32
 !sdkconfig.esp32-s2
 !sdkconfig.esp32-s3
+
+dependencies.lock
