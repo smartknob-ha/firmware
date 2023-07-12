@@ -22,8 +22,8 @@ enum ring_light_effect {
 	/*
 	* Approximate a point on an angle
 	*
-	* param_a: [int] angle center of point
-	* param_b: [int] angle of width of point
+	* param_a: [int] angle center of point in degrees
+	* param_b: [int] angle of width of point in degrees
 	*
 	* primary_color: base color, fades at from center
 	*/
@@ -48,7 +48,7 @@ enum ring_light_effect {
 	*/
 	FILL,
 
-	/*  -- NOT IMPLEMENTED --
+	/*
 	* Static gradient
 	*
 	* param_a: [int]  gradient angle, between 0 and 359
