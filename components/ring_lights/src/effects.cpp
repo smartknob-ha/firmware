@@ -102,22 +102,24 @@ void effects::pointer(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 
 	hsv_t color = msg.primary_color;
 
-	for (int_fast8_t i = NUM_LEDS - 1; i >= 0; i--) {
+	for (int_fast8_t i = 0; i < NUM_LEDS; i++) {
 		double current_degree = i * DEGREE_PER_LED;
 		double degrees_to_center = GET_SMALLEST_DEGREE_DIFFERENCE(angle_degrees, current_degree);
 		double progress = 0.0;
 
 		if (degrees_to_center <= width_half_pointer_degree) {
-			progress = degrees_to_center / width_degree;
+			progress = (degrees_to_center / width_degree) + 1;
 		}
 
-		if (-1 <= progress && progress <= 0) {
+		if (0 <= progress && progress <= 1) {
 			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * abs(progress));
-		} else if (0 < progress && progress <= 1) {
-			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * (1 - progress));
+		} else if (1 <= progress && progress <= 2) {
+			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * (1 - (progress - 1)));
+		} else {
+			color.value = 0;
 		}
 
-		buffer[wrap_index(i)] = hsv2rgb_rainbow(color);
+		buffer[i] = hsv2rgb_rainbow(color);
 		color.value = 0;
 	}
 }
