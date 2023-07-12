@@ -86,7 +86,7 @@ double GET_LED_ANGLE_RAD(T led) {
 		angle = M_TAU + angle;
 	}
 	if (angle > M_PI) {
-		angle = angle - 2 * M_PI;
+		angle = angle - M_TAU;
 	}
 	return angle;
 }
@@ -112,9 +112,9 @@ void effects::pointer(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 		}
 
 		if (-1 <= progress && progress <= 0) {
-			color.value = msg.primary_color.value * abs(progress);
+			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * abs(progress));
 		} else if (0 < progress && progress <= 1) {
-			color.value = msg.primary_color.value * (1 - progress);
+			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * (1 - progress));
 		}
 
 		buffer[wrap_index(i)] = hsv2rgb_rainbow(color);
@@ -127,7 +127,7 @@ void effects::percent(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	int_fast16_t end = msg.param_b;
 
 	// Scale `end` to percentage
-	double percent = (double) msg.param_c / 100;
+	double percent = static_cast<double>(msg.param_c) / 100;
 	int_fast16_t total_width = GET_CLOCKWISE_DIFF_DEGREES(start, end);
 	int_fast16_t correct_end = start + (total_width * (percent));
 	correct_end %= 360;
@@ -166,23 +166,17 @@ void effects::gradient(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	double gradient_angle = msg.param_a % 360;
 
 	// Divide by 50 so 100 percent spans 2 units on the unit circle
-	double gradient_width = ((double) msg.param_b / 50.0);
+	double gradient_width = static_cast<double>(msg.param_b) / 50.0;
 	// Subtract 1 so 50 percent will be 0, which is the center of the unit circle
-	double gradient_center = ((double) msg.param_c / 50.0) - 1;
+	double gradient_center = (static_cast<double>(msg.param_c) / 50.0) - 1;
+
+	double gradient_start_corner = std::clamp(gradient_center + (gradient_width / 2), -1.0, 1.0);
+	double gradient_end_corner = std::clamp(gradient_center - (gradient_width / 2), -1.0, 1.0);
 
 	// The angles of the gradient drawn on the right are between .5 * PI and -.5 * PI
-	double start_angle_right = asin(gradient_center + (gradient_width / 2));
-	double end_angle_right = asin(gradient_center - (gradient_width / 2));
+	double start_angle_right = asin(gradient_start_corner);
+	double end_angle_right = asin(gradient_end_corner);
 	double end_angle_left = REFLECT_ON_Y_RAD(end_angle_right);
-
-	if ((double) msg.param_c + ((double) msg.param_b / 2) > 100.0) {
-		start_angle_right = M_PI_2;
-	}
-
-	if ((double) msg.param_c + ((double) msg.param_b / 2) < 0.0) {
-		end_angle_right = -M_PI_2;
-		end_angle_left = -M_PI_2;
-	}
 
 	double width_radian = start_angle_right - end_angle_right;
 
@@ -193,12 +187,14 @@ void effects::gradient(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 		double progress_right = GET_CLOCKWISE_DIFF_RADIAN(start_angle_right, current_degree)/* / width_radian*/;
 		double progress_left = GET_CLOCKWISE_DIFF_RADIAN(end_angle_left, current_degree)/* / width_radian*/;
 
+
+		buffer[i] = rgb_t {};
 		if (progress_right < width_radian) {
 			double progress = progress_right / width_radian;
-			buffer[i] = GRADIENT_BUFFER[(int) (progress * GRADIENT_RESOLUTION)];
+			buffer[i] = GRADIENT_BUFFER[static_cast<int>(std::round(progress * GRADIENT_RESOLUTION))];
 		} else if (progress_left < width_radian) {
 			double progress = 1 - (progress_left / width_radian);
-			buffer[i] = GRADIENT_BUFFER[(int) (progress * GRADIENT_RESOLUTION)];
+			buffer[i] = GRADIENT_BUFFER[static_cast<int>(std::round(progress * GRADIENT_RESOLUTION))];
 		} else if (progress_left < M_PI) {
 			buffer[i] = hsv2rgb_rainbow(msg.primary_color);
 		} else {

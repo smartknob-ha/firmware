@@ -18,7 +18,7 @@ res ring_lights::initialize() {
 	led_strip_install();
 	esp_err_t err = led_strip_init(&m_strip);
 	if (err) {
-		RETURN_ERR_MSG(err, "Failed to init led strip: ");
+		RETURN_ON_ERR_MSG(err, "Failed to init led strip: ");
 	}
 
 	ESP_LOGI(TAG, "Starting ring lights");
@@ -28,7 +28,7 @@ res ring_lights::initialize() {
 }
 
 void ring_lights::start_flush(void* _this) {
-	ring_lights* m = (ring_lights*) (_this);
+	auto* m = (ring_lights*) (_this);
 	m->m_status = INITIALIZING;
 	m->flush_thread();
 }
