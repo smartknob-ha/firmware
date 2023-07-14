@@ -219,15 +219,24 @@ void effects::rainbow_uniform(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	}
 }
 
-template<typename T>
-T effects::wrap_index(T index) {
-	static_assert(std::is_arithmetic<T>::value);
-
-	if (0 <= index && index < NUM_LEDS) {
-		return index;
+void effects::rainbow_radial(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
+	static rgb_t rainbow_buffer[NUM_LEDS];
+	static bool ran = false;
+	if (!ran) {
+		for (uint8_t i = 0; i < NUM_LEDS; i ++) {
+			uint8_t scalar = UINT8_MAX / NUM_LEDS;
+			rainbow_buffer[i] = hsv2rgb_rainbow({.h = static_cast<uint8_t>(i * scalar), .s = 255, .v = 255});
+			ran = true;
+		}
 	}
 
-	return std::abs(index % NUM_LEDS);
+	static int_fast16_t p_angle = 0;
+	p_angle = (p_angle + msg.param_a) % 360;
+	auto led_offset = static_cast<int_fast16_t>(std::round(p_angle / DEGREE_PER_LED));
+
+	for (int_fast16_t i = 0; i < NUM_LEDS; i ++) {
+		buffer[i] = rainbow_buffer[(i + led_offset) % NUM_LEDS];
+	}
 }
 
 } /* namespace ring_lights */

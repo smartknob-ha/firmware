@@ -60,7 +60,7 @@ enum ring_light_effect {
 	*/
 	GRADIENT,
 
-	/*	-- NOT IMPLEMENTED --
+	/*
 	* Set every other led to another color
 	*
 	* primary_color: color for led's on even index
@@ -73,10 +73,10 @@ enum ring_light_effect {
 	*/
 	RAINBOW_UNIFORM,
 
-	/* -- NOT IMPLEMENTED --
+	/*
 	* Moves a rainbow around the ring
 	*
-	* param_a: [int] rotation per tick
+	* param_a: [int] rotation per tick in degrees
 	*/
 	RAINBOW_RADIAL,
 
@@ -86,7 +86,7 @@ enum ring_light_effect {
 struct effect_msg {
 	ring_light_effect effect = RAINBOW_UNIFORM;
 	int16_t param_a = 0, param_b = 0, param_c = 0;
-	hsv_t primary_color{0, 0, 0}, secondary_color{0, 0, 0};
+	hsv_t primary_color{{0}, {0}, {0}}, secondary_color{{0}, {0}, {0}};
 };
 
 typedef void (* effect_func)(rgb_t (&)[NUM_LEDS], effect_msg&);

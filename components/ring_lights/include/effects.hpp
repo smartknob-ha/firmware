@@ -13,8 +13,9 @@ public:
 	static void percent(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg);
 	static void fill(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg);
 	static void gradient(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg);
-	static void skip(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {};
+	static void skip(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg);
 	static void rainbow_uniform(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg);
+	static void rainbow_radial(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg);
 
 	static effect_func get(ring_light_effect effect) { return m_mapper[effect]; };
 private:
@@ -25,11 +26,9 @@ private:
 		&effects::fill,
 		&effects::gradient,
 		&effects::skip,
-		&effects::rainbow_uniform
+		&effects::rainbow_uniform,
+		&effects::rainbow_radial
 	};
-
-	template<typename T>
-	static T wrap_index(T index);
 };
 
 }; /* namespace ring_lights */
