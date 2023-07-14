@@ -1,6 +1,9 @@
 [submodule "components/sdk"]
-	path = sdk
+	path = lib/sdk
 	url = git@github.com:smartknob-ha/sdk.git
 [submodule "lib/esp-idf-lib"]
 	path = lib/esp-idf-lib
 	url = https://github.com/UncleRus/esp-idf-lib.git
+[submodule "lib/espp"]
+	path = lib/espp
+	url = https://github.com/esp-cpp/espp.git
