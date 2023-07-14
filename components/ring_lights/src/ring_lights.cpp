@@ -40,17 +40,19 @@ void ring_lights::flush_thread() {
 	while (m_run) {
 		m_current_effect_func_p(m_current_effect_buffer, m_current_effect);
 		if (m_effect_transition_ticks_left > 0) {
-			ESP_LOGI(TAG, "m_effect_transition_ticks_left: %lu", m_effect_transition_ticks_left);
+			ESP_LOGD(TAG, "m_effect_transition_ticks_left: %lu", m_effect_transition_ticks_left);
 			// Fill new_effect_buffer, merge with current effect buffer
 			m_new_effect_func_p(m_new_effect_buffer, m_new_effect);
 			transition_effect();
-			ESP_LOGI(TAG, "Transition to new effect");
+			ESP_LOGD(TAG, "Transition to new effect");
 		}
 
 		led_strip_set_pixels(&m_strip, 0, NUM_LEDS, m_current_effect_buffer);
 		esp_err_t err = led_strip_flush(&m_strip);
 		if (err) {
-			ESP_LOGE(TAG, "Failed to flush led strip");
+			ESP_LOGE(TAG, "Failed to flush led strip: %s", esp_err_to_name(err));
+			m_status = STOPPING;
+			snprintf(m_err_status.data(), m_err_status.max_size() - 1, "%s", esp_err_to_name(err));
 		}
 		vTaskDelay(pdMS_TO_TICKS(FLUSH_TASK_DELAY_MS));
 	}
@@ -95,7 +97,11 @@ res ring_lights::run() {
 		}
 	}
 
-	return Ok(m_status);
+	if (m_status == RUNNING) {
+		return Ok(RUNNING);
+	} else {
+		return Err(m_err_status);
+	}
 }
 
 res ring_lights::stop() {

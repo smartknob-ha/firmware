@@ -8,7 +8,7 @@ menu "Smartknob ring LEDs"
     config LED_RMT_CHANNEL
         int "What RMT channel to use for the LED's"
         default 0
-    choice BOARD_TYPE
+    choice LED_TYPE
         prompt "LED Type"
         default SK6812
 

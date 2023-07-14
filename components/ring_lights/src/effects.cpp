@@ -14,9 +14,6 @@ namespace ring_lights {
 // Reset an angle to between 0 and +inf
 #define WRAP_NEGATIVE_DEGREE(a) (a < 0 ? 360 - a : a)
 
-// Mirror a radian on the right half of the unit circle to the left half
-#define REFLECT_ON_Y_RAD(a) (a >= 0 ? M_PI - a : -M_PI - a)
-
 #define GET_SMALLEST_DEGREE_DIFFERENCE(a, b) (180.0 - abs(abs(a - b) - 180.0))
 
 #define DEGREE_TO_RADIAN(a) (a * M_PI / 180)
@@ -30,7 +27,7 @@ int_fast16_t GET_CLOCKWISE_DIFF_DEGREES(int_fast16_t a, int_fast16_t b) {
 	return diff;
 }
 
-/* IS_BETWEEN_A_B_CLOCKWISE_DEGREES calculates whether angle c is between angle a and b
+/* Calculates whether angle c is between angle a and b
 *		in a clockwise direction
 *  @returns how far the current angle is between a and b, clockwise.
 */
@@ -119,8 +116,8 @@ void effects::percent(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 }
 
 void effects::fill(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
-	for (auto& i : buffer) {
-		i = hsv2rgb_rainbow(msg.primary_color);
+	for (auto& led : buffer) {
+		led = hsv2rgb_rainbow(msg.primary_color);
 	}
 }
 
@@ -188,8 +185,8 @@ void effects::rainbow_uniform(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	rgb_t rgb = hsv2rgb_rainbow(color);
 
 	// Give all LED's the same colour
-	for (auto& i : buffer) {
-		i = rgb;
+	for (auto& led : buffer) {
+		led = rgb;
 	}
 }
 

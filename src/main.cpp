@@ -6,8 +6,8 @@
 #include <inttypes.h>
 #include "esp_log.h"
 
-#include "../sdk/mock_component/include/mock_component.hpp"
-#include "../sdk/manager/include/manager.hpp"
+#include "mock_component.hpp"
+#include "manager.hpp"
 
 #include "ring_lights.hpp"
 
@@ -20,7 +20,7 @@
 
 	// This is here for show, remove it if you want
 	ring_lights::effect_msg msg;
-	msg.primary_color = {.hue = HUE_AQUA, .saturation = 255, .value = 200};
+	msg.primary_color = {.hue = HUE_PINK, .saturation = 255, .value = 200};
 	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
 	msg.effect = ring_lights::RAINBOW_RADIAL;
 	msg.param_a = 10;

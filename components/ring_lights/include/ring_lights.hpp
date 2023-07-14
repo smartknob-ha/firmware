@@ -15,7 +15,7 @@ namespace ring_lights {
 	#define LED_TYPE led_strip_type_t::LED_STRIP_WS2812
 #elif defined(CONFIG_APA106)
 	#define LED_TYPE led_strip_type_t::LED_STRIP_APA106
-#elif defined(SM16703)
+#elif defined(CONFIG_SM16703)
 	#define LED_TYPE led_strip_type_t::LED_STRIP_SM16703
 #else
 	#error Please define a valid LED type using menuconfig
@@ -39,6 +39,7 @@ private:
 	rgb_t m_new_effect_buffer[NUM_LEDS];
 
 	COMPONENT_STATUS m_status = UNINITIALIZED;
+	etl::string<128> m_err_status;
 	bool m_run = false;
 	uint32_t m_effect_transition_ticks_left = 0;
 
