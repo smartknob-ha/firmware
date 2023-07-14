@@ -205,8 +205,10 @@ void effects::rainbow_radial(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	}
 
 	static int_fast16_t p_angle = 0;
-	p_angle = (p_angle + msg.param_a) % 360;
-	auto led_offset = static_cast<int_fast16_t>(std::round(p_angle / DEGREE_PER_LED));
+	p_angle = (p_angle + msg.param_a ) % 360;
+	p_angle = p_angle <= 0 ? p_angle + 360 : p_angle;
+
+	auto led_offset = static_cast<int_fast16_t>(p_angle / DEGREE_PER_LED) % NUM_LEDS;
 
 	for (int_fast16_t i = 0; i < NUM_LEDS; i ++) {
 		buffer[i] = rainbow_buffer[(i + led_offset) % NUM_LEDS];
