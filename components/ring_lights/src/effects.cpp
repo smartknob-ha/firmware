@@ -194,6 +194,16 @@ void effects::gradient(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	}
 }
 
+void effects::skip(rgb_t (& buffer)[NUM_LEDS], ring_lights::effect_msg& msg) {
+	for (int_fast16_t i = 0; i < NUM_LEDS; i ++) {
+		if (i % 2) {
+			buffer[i] = hsv2rgb_rainbow(msg.primary_color);
+		} else {
+			buffer[i] = hsv2rgb_rainbow(msg.secondary_color);
+		}
+	}
+}
+
 void effects::rainbow_uniform(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	static uint8_t hsv_step = 0;
 	hsv_step++;
