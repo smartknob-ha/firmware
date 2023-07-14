@@ -10,6 +10,8 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+cmake-build-debug
+
 
 # PlatformIO files
 .pioenvs
@@ -29,4 +31,5 @@ sdkconfig.*
 !sdkconfig.esp32
 !sdkconfig.esp32-s2
 !sdkconfig.esp32-s3
-/dependencies.lock
+
+*dependencies.lock
