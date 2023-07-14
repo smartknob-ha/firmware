@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CidrRootsConfiguration">
+    <sourceRoots>
+      <file path="$PROJECT_DIR$/components" />
+      <file path="$PROJECT_DIR$/sdk/config" />
+      <file path="$PROJECT_DIR$/sdk/manager" />
+      <file path="$PROJECT_DIR$/sdk/mock_component" />
+      <file path="$PROJECT_DIR$/sdk/test" />
+      <file path="$PROJECT_DIR$/src" />
+    </sourceRoots>
+    <libraryRoots>
+      <file path="$PROJECT_DIR$/.pio/libdeps" />
+      <file path="$PROJECT_DIR$/sdk/ArduinoJson" />
+    </libraryRoots>
+  </component>
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="PlatformIOSettings">
+    <option name="linkedExternalProjectsSettings">
+      <PlatformioProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+          </set>
+        </option>
+      </PlatformioProjectSettings>
+    </option>
+  </component>
+  <component name="PlatformIOWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
+</project>
