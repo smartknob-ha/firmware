@@ -8,7 +8,7 @@
 
 namespace ring_lights {
 
-#define FLUSH_TASK_DELAY_MS 1000 / CONFIG_LED_STRIP_REFRESH_RATE
+#define FLUSH_TASK_DELAY_MS (1000 / CONFIG_LED_STRIP_REFRESH_RATE)
 
 res ring_lights::get_status() {
 	return Ok(m_status);

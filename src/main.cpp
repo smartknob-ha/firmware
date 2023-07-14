@@ -11,7 +11,7 @@
 
 #include "ring_lights.hpp"
 
-void start_smartknob(void) {
+[[noreturn]] void start_smartknob(void) {
 
 	ring_lights::ring_lights ring_lights_;
 	sdk::manager::instance().add_component(ring_lights_);
@@ -22,31 +22,27 @@ void start_smartknob(void) {
 	ring_lights::effect_msg msg;
 	msg.primary_color = {.hue = HUE_AQUA, .saturation = 255, .value = 200};
 	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
-	msg.effect = ring_lights::GRADIENT;
-	msg.param_a = 0;
-	msg.param_b = 75;
-	msg.param_c = 75;
+	msg.effect = ring_lights::RAINBOW_RADIAL;
+	msg.param_a = 10;
 	ring_lights_.enqueue(msg);
 
+	bool flip_flop = true;
+	for(;;) {
 
-	bool flipflop = true;
-	while (true) {
-
-		if (flipflop) {
-			msg.param_b -= 10;
-			if (msg.param_b == 0) {
-				flipflop = false;
-			}
+		if (flip_flop) {
+			msg.param_a += 10;
 		} else {
-			msg.param_b += 10;
-			if (msg.param_b == 100) {
-				flipflop = true;
-			}
+			msg.param_a -= 10;
+		}
+
+		if (msg.param_a == 0) {
+			flip_flop = true;
+		} else if (msg.param_a == 360) {
+			flip_flop = false;
 		}
 
 		ring_lights_.enqueue(msg);
-
-		vTaskDelay(pdMS_TO_TICKS(1000));
+		vTaskDelay(pdMS_TO_TICKS(100));
 	}
 }
 

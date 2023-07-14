@@ -30,22 +30,6 @@ int_fast16_t GET_CLOCKWISE_DIFF_DEGREES(int_fast16_t a, int_fast16_t b) {
 	return diff;
 }
 
-// Just make sure to enter your angles in clockwise order
-double GET_CLOCKWISE_DIFF_RADIAN(double a, double b) {
-	double diff = a - b;
-	if (diff < 0) {
-		return fmod(diff + M_TAU, 2 * M_PI);
-	}
-	return diff;
-}
-
-int_fast16_t GET_COUNTER_CLOCKWISE_DIFF(int_fast16_t a, int_fast16_t b) {
-	int_fast16_t diff = a - b;
-	if (diff < 0) {
-		return diff + 360;
-	}
-	return diff;
-}
 /* IS_BETWEEN_A_B_CLOCKWISE_DEGREES calculates whether angle c is between angle a and b
 *		in a clockwise direction
 *  @returns how far the current angle is between a and b, clockwise.
@@ -57,16 +41,6 @@ int_fast16_t IS_BETWEEN_A_B_CLOCKWISE_DEGREES(int_fast16_t a, int_fast16_t b, in
 	return relative_angle - relative_total_width;
 }
 
-/* IS_BETWEEN_A_B_CLOCKWISE_RADIAN calculates whether angle c is between angle a and b
-*		in a clockwise direction
-*  @returns how far the current angle is between a and b, clockwise.
-*/
-double IS_BETWEEN_A_B_CLOCKWISE_RADIAN(double a, double b, double c) {
-	double relative_total_width = a + GET_CLOCKWISE_DIFF_RADIAN(a, b);
-	double relative_angle = a + GET_CLOCKWISE_DIFF_RADIAN(a, c);
-
-	return relative_angle - relative_total_width;
-}
 
 template<typename T>
 double GET_LED_ANGLE_DEGREES(T led) {
