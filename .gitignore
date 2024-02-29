@@ -33,3 +33,4 @@ sdkconfig.*
 !sdkconfig.esp32-s3
 
 *dependencies.lock
+.idea
