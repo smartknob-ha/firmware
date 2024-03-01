@@ -23,20 +23,20 @@ namespace ring_lights {
 
 class ring_lights : public component, public has_queue<1, effect_msg, 0> {
 public:
-	ring_lights() {};
+	ring_lights() = default;
 	~ring_lights() = default;
 
 	/* Component override functions */
-	virtual etl::string<50> get_tag() override { return TAG; };
-	virtual res get_status() override;
-	virtual res initialize() override;
-	virtual res run() override;
-	virtual res stop() override;
+	etl::string<50> get_tag() override { return TAG; };
+	res get_status() override;
+	res initialize() override;
+	res run() override;
+	res stop() override;
 
 private:
 	static const inline char TAG[] = "Ring lights";
-	rgb_t m_current_effect_buffer[NUM_LEDS];
-	rgb_t m_new_effect_buffer[NUM_LEDS];
+	rgb_t m_current_effect_buffer[NUM_LEDS]{};
+	rgb_t m_new_effect_buffer[NUM_LEDS]{};
 
 	COMPONENT_STATUS m_status = UNINITIALIZED;
 	etl::string<128> m_err_status;
@@ -47,8 +47,8 @@ private:
 		.effect = RAINBOW_UNIFORM,
 		.param_a = 0,
 		.param_b = 0,
-		.primary_color = {0, 0, 0},
-		.secondary_color = {0, 0, 0}
+		.primary_color = {.h = 0, .s = 0, .v = 0},
+		.secondary_color = {.h = 0, .s = 0, .v = 0}
 	};
 
 	effect_msg m_new_effect;
