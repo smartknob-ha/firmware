@@ -193,10 +193,10 @@ void effects::rainbow_radial(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	static rgb_t rainbow_buffer[NUM_LEDS];
 	static bool ran = false;
 	if (!ran) {
-		float scalar = static_cast<float>(191) / (static_cast<float>(NUM_LEDS) - .75);
+		float scalar = static_cast<float>(UINT8_MAX) / (static_cast<float>(NUM_LEDS) - 1);
 		for (uint8_t i = 0; i < NUM_LEDS; i ++) {
 			float hue = std::fmin(static_cast<float>(i) * scalar, 255.0f);
-			rainbow_buffer[i] = hsv2rgb_raw({.h = static_cast<uint8_t>(roundf(hue)), .s = 255, .v = 255});
+			rainbow_buffer[i] = hsv2rgb_rainbow({.h = static_cast<uint8_t>(roundf(hue)), .s = 255, .v = 255});
 			ran = true;
 		}
 	}

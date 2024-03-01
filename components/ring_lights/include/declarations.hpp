@@ -18,6 +18,7 @@ namespace ring_lights {
 #define EFFECT_TRANSITION_TICKS 1000 / portTICK_PERIOD_MS
 
 // This way you could set some basic colors, but no patterns
+// Do NOT re-order this list, only add new effects between the current last one and EFFECT_MAX
 enum ring_light_effect {
 	/*
 	* Approximate a point on an angle
