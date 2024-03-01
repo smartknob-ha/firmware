@@ -79,22 +79,26 @@ void ring_lights::transition_effect() {
 }
 
 res ring_lights::run() {
-	effect_msg tmp;
-
-	if (xQueueReceive(m_queue, (void*) &tmp, 0) == pdTRUE) {
-		if (tmp.effect == m_current_effect.effect) {
+	effect_msg effect_msg_;
+	if (effect_msg_queue::dequeue(effect_msg_, 0) == pdTRUE) {
+		if (effect_msg_.effect == m_current_effect.effect) {
 			ESP_LOGD(TAG, "Current effect update received!");
-			m_current_effect = tmp;
-		} else if (tmp.effect == m_new_effect.effect) {
+			m_current_effect = effect_msg_;
+		} else if (effect_msg_.effect == m_new_effect.effect) {
 			ESP_LOGD(TAG, "New effect update received!");
-			m_new_effect = tmp;
-		} else if (tmp.effect != m_current_effect.effect) {
-			ESP_LOGI(TAG, "New effect received: %d, current effect %d", tmp.effect,
+			m_new_effect = effect_msg_;
+		} else if (effect_msg_.effect != m_current_effect.effect) {
+			ESP_LOGI(TAG, "New effect received: %d, current effect %d", effect_msg_.effect,
 			         m_current_effect.effect);
-			m_new_effect = tmp;
-			m_new_effect_func_p = effects::get(tmp.effect);
+			m_new_effect = effect_msg_;
+			m_new_effect_func_p = effects::get(effect_msg_.effect);
 			m_effect_transition_ticks_left = EFFECT_TRANSITION_TICKS;
 		}
+	}
+
+	brightness_msg brightness_msg_;
+	if (brightness_msg_queue::dequeue(brightness_msg_, 0) == pdTRUE) {
+		m_strip.brightness = brightness_msg_.brightness;
 	}
 
 	if (m_status == RUNNING) {

@@ -90,6 +90,10 @@ struct effect_msg {
 	hsv_t primary_color{{0}, {0}, {0}}, secondary_color{{0}, {0}, {0}};
 };
 
+struct brightness_msg {
+	uint8_t brightness = 127;
+};
+
 typedef void (* effect_func)(rgb_t (&)[NUM_LEDS], effect_msg&);
 
 }; /* namespace ring_lights */
