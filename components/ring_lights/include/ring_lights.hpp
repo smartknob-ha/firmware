@@ -21,7 +21,9 @@ namespace ring_lights {
 	#error Please define a valid LED type using menuconfig
 #endif
 
-class ring_lights : public component, public has_queue<1, effect_msg, 0> {
+class ring_lights : public component,
+	public has_queue<1, effect_msg, 0>,
+	public has_queue<1, brightness_msg, 0> {
 public:
 	ring_lights() = default;
 	~ring_lights() = default;
@@ -33,7 +35,13 @@ public:
 	res run() override;
 	res stop() override;
 
+	void enqueue(effect_msg& msg) override { effect_msg_queue::enqueue(msg); }
+	void enqueue(brightness_msg& msg) override { brightness_msg_queue::enqueue(msg); }
+
 private:
+	using effect_msg_queue = has_queue<1, effect_msg, 0>;
+	using brightness_msg_queue = has_queue<1, brightness_msg, 0>;
+
 	static const inline char TAG[] = "Ring lights";
 	rgb_t m_current_effect_buffer[NUM_LEDS]{};
 	rgb_t m_new_effect_buffer[NUM_LEDS]{};
@@ -63,7 +71,7 @@ private:
 	inline static led_strip_t m_strip = {
 		.type = LED_TYPE,
 		.is_rgbw = false,
-		.brightness = 150,
+		.brightness = 63,
 		.length = NUM_LEDS,
 		.gpio = gpio_num_t(DATA_PIN),
 		.channel = (rmt_channel_t) CONFIG_LED_RMT_CHANNEL,
