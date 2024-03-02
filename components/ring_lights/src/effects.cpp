@@ -14,7 +14,7 @@ namespace ring_lights {
 // Reset an angle to between 0 and +inf
 #define WRAP_NEGATIVE_DEGREE(a) (a < 0 ? 360 - a : a)
 
-#define GET_SMALLEST_DEGREE_DIFFERENCE(a, b) (180.0 - abs(abs(a - b) - 180.0))
+#define GET_SMALLEST_DEGREE_DIFFERENCE(a, b) (180.0f - fabs(abs(a - b) - 180.0f))
 
 #define DEGREE_TO_RADIAN(a) (a * M_PI / 180)
 
@@ -41,9 +41,9 @@ int_fast16_t IS_BETWEEN_A_B_CLOCKWISE_DEGREES(int_fast16_t a, int_fast16_t b, in
 template<typename T>
 double GET_LED_ANGLE_DEGREES(T led) {
 	static_assert(std::is_arithmetic<T>::value);
-	double angle = (double) led * DEGREE_PER_LED;
-	if (angle < 0) {
-		angle = 360 + angle;
+	double angle = static_cast<double>(led) * static_cast<double>(DEGREE_PER_LED);
+	if (angle < 0.0) {
+		angle = 360.0 + angle;
 	}
 	return angle;
 }
@@ -66,30 +66,30 @@ bool HSV_IS_EQUAL(hsv_t a, hsv_t b) {
 }
 
 void effects::pointer(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
-	int_fast16_t angle_degrees = WRAP_NEGATIVE_DEGREE(msg.param_a);
-	int_fast16_t width_degree = msg.param_b;
-	int_fast16_t width_half_pointer_degree = width_degree / 2;
+	auto angle_degrees = static_cast<float>(WRAP_NEGATIVE_DEGREE(msg.param_a) % 360);
+	auto width_degree = static_cast<float>(msg.param_b);
+	auto width_half_pointer_degree = static_cast<float>(width_degree) / 2.0f;
 
 	hsv_t color = msg.primary_color;
 
 	for (int_fast8_t i = 0; i < NUM_LEDS; i++) {
-		double current_degree = i * DEGREE_PER_LED;
-		double degrees_to_center = GET_SMALLEST_DEGREE_DIFFERENCE(angle_degrees, current_degree);
-		double progress = 0.0;
+		float current_degree = static_cast<float>(i) * static_cast<float>(DEGREE_PER_LED);
+		float degrees_to_center = GET_SMALLEST_DEGREE_DIFFERENCE(angle_degrees, current_degree);
+		float progress = 0.0f;
 
 		if (degrees_to_center <= width_half_pointer_degree) {
-			progress = (degrees_to_center / width_degree) + 1;
+			progress = (width_half_pointer_degree - degrees_to_center) / width_half_pointer_degree;
 		}
 
-		if (0 <= progress && progress <= 1) {
+		if (0.0f <= progress && progress <= 1.0f) {
 			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * abs(progress));
-		} else if (1 <= progress && progress <= 2) {
+		} /*else if (1.0f <= progress && progress <= 2.0f) {
 			color.value = static_cast<uint8_t>(static_cast<double>(msg.primary_color.value) * (1 - (progress - 1)));
-		} else {
+		}*/ else {
 			color.value = 0;
 		}
 
-		buffer[i] = hsv2rgb_rainbow(color);
+		buffer[i % NUM_LEDS] = hsv2rgb_rainbow(color);
 		color.value = 0;
 	}
 }
