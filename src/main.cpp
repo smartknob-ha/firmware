@@ -25,11 +25,12 @@
 	ring_lights::effect_msg msg;
 	msg.primary_color = {.hue = HUE_PINK, .saturation = 255, .value = 200};
 	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
-	msg.effect = ring_lights::RAINBOW_RADIAL;
+	msg.effect = ring_lights::POINTER;
 	msg.param_a = 1;
+	msg.param_b = 40;
 	ring_lights_.enqueue(msg);
 
-	ring_lights::brightness_msg bruh {.brightness=0};
+//	ring_lights::brightness_msg bruh {.brightness=0};
 
 	bool flip_flop = true;
     int count = 0;
@@ -42,18 +43,18 @@
 	    }
 
 		if (flip_flop) {
-			bruh.brightness += 1;
+			msg.param_a += 1;
 		} else {
-			bruh.brightness -= 1;
+			msg.param_a -= 1;
 		}
 
-		if (bruh.brightness == 0) {
+		if (msg.param_a == 0) {
 			flip_flop = true;
-		} else if (bruh.brightness == UINT8_MAX) {
+		} else if (msg.param_a == 1000) {
 			flip_flop = false;
 		}
 
-		ring_lights_.enqueue(bruh);
+		ring_lights_.enqueue(msg);
 		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 }
