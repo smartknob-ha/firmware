@@ -11,13 +11,16 @@
 
 #include "ring_lights.hpp"
 #include "light_sensor.hpp"
+#include "strain_sensor.hpp"
 
 [[noreturn]] void start_smartknob(void) {
 
 	ring_lights::ring_lights ring_lights_;
     light_sensor::light_sensor light_sensor_;
+    strain_sensor::strain_sensor strain_sensor_;
     sdk::manager::instance().add_component(ring_lights_);
     sdk::manager::instance().add_component(light_sensor_);
+    sdk::manager::instance().add_component(strain_sensor_);
 
 	sdk::manager::instance().start();
 
@@ -35,6 +38,9 @@
 	    if (count++ > 10) {
 	        if (auto light = light_sensor_.read_light_level(); light.isOk()) {
 	            ESP_LOGI("main", "light value: %ld", light.unwrap());
+	        }
+	        if (auto strain = strain_sensor_.read_light_level(); strain.isOk()) {
+	            ESP_LOGI("main", "strain value: %ld", strain.unwrap());
 	        }
 	        count = 0;
 	    }
