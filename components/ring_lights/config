@@ -1,7 +1,7 @@
 menu "Smartknob ring LEDs"
     config LED_STRIP_GPIO
         int "GPIO number for LED data"
-        default 9
+        default 18
     config LED_STRIP_NUM
         int "Number of LED's in strip"
         default 64
@@ -14,7 +14,7 @@ menu "Smartknob ring LEDs"
         range 0 255
     choice LED_TYPE
         prompt "LED Type"
-        default SK6812
+        default WS2812
 
         config SK6812
             bool "SK6812"
