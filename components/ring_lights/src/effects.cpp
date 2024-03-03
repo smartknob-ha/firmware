@@ -1,7 +1,7 @@
 #include "../include/effects.hpp"
+
 #include <math.h>
 #include <cmath>
-
 #include "esp_log.h"
 
 namespace ring_lights {
@@ -51,7 +51,8 @@ double GET_LED_ANGLE_DEGREES(T led) {
 template<typename T>
 double GET_LED_ANGLE_RAD(T led) {
 	static_assert(std::is_arithmetic<T>::value);
-	double angle = (led * RAD_PER_LED) + (RAD_PER_LED / 2) - M_PI;
+    // (M_PI / 2) because radians start on the right (90 degrees)
+	double angle = (led * RAD_PER_LED) + (M_PI / 2);
 	if (angle < 0) {
 		angle = M_TAU + angle;
 	}
@@ -123,27 +124,29 @@ void effects::fill(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 void effects::gradient(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	// Since every opposite LED gets the same color,
 	// the gradient buffer only needs to be half the size
-	// of the LED buffer
-	const static uint_fast8_t GRADIENT_RESOLUTION = NUM_LEDS / 2;
+	// of the LED buffer.
+	const static uint_fast8_t GRADIENT_RESOLUTION = NUM_LEDS * 2;
 
 	static hsv_t p_primary_color, p_secondary_color;
-	static rgb_t GRADIENT_BUFFER[GRADIENT_RESOLUTION];
+	static hsv_t GRADIENT_BUFFER[GRADIENT_RESOLUTION];
 
 	// Only recalculate the gradient if the colors changed
 	if (!HSV_IS_EQUAL(msg.primary_color, p_primary_color) || !HSV_IS_EQUAL(msg.secondary_color, p_secondary_color)) {
-		rgb_fill_gradient2_hsv(GRADIENT_BUFFER, GRADIENT_RESOLUTION, msg.primary_color, msg.secondary_color,
-		                       COLOR_BACKWARD_HUES);
+		hsv_fill_gradient2_hsv(GRADIENT_BUFFER, GRADIENT_RESOLUTION, msg.secondary_color, msg.primary_color,
+		                       COLOR_SHORTEST_HUES);
 		p_primary_color = msg.primary_color;
 		p_secondary_color = msg.secondary_color;
 	}
 
 	double gradient_angle = msg.param_a % 360;
 
-	// Divide by 50 so 100 percent spans 2 units on the unit circle
+	// Divide by 50 so 100 percent covers the whole unit circle height
 	double gradient_width = static_cast<double>(msg.param_b) / 50.0;
-	// Subtract 1 so 50 percent will be 0, which is the center of the unit circle
+	// Subtract 1 so 50 percent will be 0, which is the center y of the unit circle
 	double gradient_center = (static_cast<double>(msg.param_c) / 50.0) - 1;
 
+	// Center is along the middle line, so upper and lower describe the start and
+	// ending for both the left and the right side of the gradient on the circle
 	double upper = gradient_center + (gradient_width / 2);
 	double lower = gradient_center - (gradient_width / 2);
 
@@ -152,14 +155,13 @@ void effects::gradient(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 		current_degree -= DEGREE_TO_RADIAN(gradient_angle);
 		double y_pos = sin(current_degree);
 
-		double progress = 1 - (y_pos - lower) / gradient_width;
-
-		if (y_pos < lower) {
+		if (y_pos <= lower) {
 			buffer[i] = hsv2rgb_rainbow(msg.secondary_color);
-		} else if (y_pos > upper) {
+		} else if (y_pos >= upper) {
 			buffer[i] = hsv2rgb_rainbow(msg.primary_color);
 		} else {
-			buffer[i] = GRADIENT_BUFFER[static_cast<int>(std::round(progress * GRADIENT_RESOLUTION))];
+            double progress = (y_pos - lower) / gradient_width;
+			buffer[i] = hsv2rgb_rainbow(GRADIENT_BUFFER[static_cast<int>(std::round(progress * (GRADIENT_RESOLUTION - 1)))]);
 		}
 	}
 }
