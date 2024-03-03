@@ -71,7 +71,7 @@ private:
 	inline static led_strip_t m_strip = {
 		.type = LED_TYPE,
 		.is_rgbw = false,
-		.brightness = 63,
+		.brightness = CONFIG_LED_MAX_BRIGHTNESS,
 		.length = NUM_LEDS,
 		.gpio = gpio_num_t(DATA_PIN),
 		.channel = (rmt_channel_t) CONFIG_LED_RMT_CHANNEL,
