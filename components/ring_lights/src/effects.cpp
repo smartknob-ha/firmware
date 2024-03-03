@@ -105,13 +105,26 @@ void effects::percent(rgb_t (& buffer)[NUM_LEDS], effect_msg& msg) {
 	int_fast16_t correct_end = start + (total_width * (percent));
 	correct_end %= 360;
 
+    double degree_per_percent = (total_width / 100.0);
+
+    // The vast majority of the LED's will be set using this colour, so avoid recalculating it for every LED
+    rgb_t active_color = hsv2rgb_rainbow(msg.primary_color);
+
 	for (int_fast8_t i = 0; i < NUM_LEDS; i++) {
-		double current_degree = GET_LED_ANGLE_DEGREES(i);
-		if (IS_BETWEEN_A_B_CLOCKWISE_DEGREES(start, correct_end, current_degree)) {
-			buffer[i] = hsv2rgb_rainbow(msg.primary_color);
-		} else {
-			buffer[i] = {{0}, {0}, {0}};
-		}
+		auto current_degree = static_cast<int_fast16_t>(std::round(GET_LED_ANGLE_DEGREES(i)));
+        auto remainder = IS_BETWEEN_A_B_CLOCKWISE_DEGREES(start, correct_end, current_degree);
+		if (remainder < 0 - degree_per_percent) {
+            buffer[i] = active_color;
+        } else if (remainder <= 0) {
+            auto value = static_cast<uint8_t>(std::round(static_cast<double>(msg.primary_color.value) * (abs(remainder) / degree_per_percent)));
+            buffer[i] = hsv2rgb_rainbow({
+                .h = msg.primary_color.hue,
+                .s = msg.primary_color.sat,
+                .v = value
+            });
+        } else {
+            buffer[i] = {{0}, {0}, {0}};
+        }
 	}
 }
 
