@@ -10,11 +10,14 @@
 #include "manager.hpp"
 
 #include "ring_lights.hpp"
+#include "light_sensor.hpp"
 
 [[noreturn]] void start_smartknob(void) {
 
 	ring_lights::ring_lights ring_lights_;
-	sdk::manager::instance().add_component(ring_lights_);
+    light_sensor::light_sensor light_sensor_;
+    sdk::manager::instance().add_component(ring_lights_);
+    sdk::manager::instance().add_component(light_sensor_);
 
 	sdk::manager::instance().start();
 
@@ -27,7 +30,14 @@
 	ring_lights_.enqueue(msg);
 
 	bool flip_flop = true;
+    int count = 0;
 	for(;;) {
+	    if (count++ > 10) {
+	        if (auto light = light_sensor_.read_light_level(); light.isOk()) {
+	            ESP_LOGI("main", "light value: %ld", light.unwrap());
+	        }
+	        count = 0;
+	    }
 
 		if (flip_flop) {
 			msg.param_a += 10;

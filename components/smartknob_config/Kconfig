@@ -1,3 +1,4 @@
 menu "Smartknob Config"
     rsource "../ring_lights/config"
+    rsource "../light_sensor/config"
 endmenu
