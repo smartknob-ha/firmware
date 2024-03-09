@@ -1,95 +1,87 @@
+#include <inttypes.h>
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
+#include "LightSensor.hpp"
+#include "Manager.hpp"
+#include "RightLights.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
-#include <inttypes.h>
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-#include "mock_component.hpp"
-#include "manager.hpp"
+[[noreturn]] void startSmartknob(void) {
 
-#include "ring_lights.hpp"
-#include "light_sensor.hpp"
+    ringLights::RingLights ringLights;
+    LightSensor            lightSensor;
+    sdk::Manager::instance().addComponent(ringLights);
+    sdk::Manager::instance().addComponent(lightSensor);
 
-[[noreturn]] void start_smartknob(void) {
+    sdk::Manager::instance().start();
 
-	ring_lights::ring_lights ring_lights_;
-    light_sensor::light_sensor light_sensor_;
-    sdk::manager::instance().add_component(ring_lights_);
-    sdk::manager::instance().add_component(light_sensor_);
+    // This is here for show, remove it if you want
+    ringLights::effectMsg msg;
+    msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
+    msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
+    msg.effect         = ringLights::POINTER;
+    msg.paramA         = 1;
+    msg.paramB         = 40;
+    ringLights.enqueue(msg);
 
-	sdk::manager::instance().start();
+    bool flipFlop = true;
+    int  count    = 0;
+    for (;;) {
+        if (count++ > 10) {
+            if (auto light = lightSensor.readLightLevel(); light.isOk()) {
+                ESP_LOGI("main", "light value: %ld", light.unwrap());
+            }
+            count = 0;
+        }
 
-	// This is here for show, remove it if you want
-	ring_lights::effect_msg msg;
-	msg.primary_color = {.hue = HUE_PINK, .saturation = 255, .value = 200};
-	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
-	msg.effect = ring_lights::POINTER;
-	msg.param_a = 1;
-	msg.param_b = 40;
-	ring_lights_.enqueue(msg);
+        if (flipFlop) {
+            msg.paramA += 1;
+        } else {
+            msg.paramA -= 1;
+        }
 
-//	ring_lights::brightness_msg bruh {.brightness=0};
+        if (msg.paramA == 0) {
+            flipFlop = true;
+        } else if (msg.paramA == 1000) {
+            flipFlop = false;
+        }
 
-	bool flip_flop = true;
-    int count = 0;
-	for(;;) {
-	    if (count++ > 10) {
-	        if (auto light = light_sensor_.read_light_level(); light.isOk()) {
-	            ESP_LOGI("main", "light value: %ld", light.unwrap());
-	        }
-	        count = 0;
-	    }
-
-		if (flip_flop) {
-			msg.param_a += 1;
-		} else {
-			msg.param_a -= 1;
-		}
-
-		if (msg.param_a == 0) {
-			flip_flop = true;
-		} else if (msg.param_a == 1000) {
-			flip_flop = false;
-		}
-
-		ring_lights_.enqueue(msg);
-		vTaskDelay(pdMS_TO_TICKS(10));
-	}
+        ringLights.enqueue(msg);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
 
-extern "C" {
+extern "C" void app_main(void) {
+    ESP_LOGI("main", "\nSleeping for 5 seconds before boot...\n");
+    sleep(5);
 
-void app_main(void) {
-	ESP_LOGI("main", "\nSleeping for 5 seconds before boot...\n");
-	sleep(5);
+    /* Print chip information */
+    esp_chip_info_t chipInfo;
+    uint32_t        flashSize;
+    esp_chip_info(&chipInfo);
+    printf("This is %s chip with %d CPU core(s), WiFi%s%s%s, ",
+           CONFIG_IDF_TARGET,
+           chipInfo.cores,
+           (chipInfo.features & CHIP_FEATURE_BT) ? "/BT" : "",
+           (chipInfo.features & CHIP_FEATURE_BLE) ? "/BLE" : "",
+           (chipInfo.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
 
-	 /* Print chip information */
-	esp_chip_info_t chip_info;
-	uint32_t flash_size;
-	esp_chip_info(&chip_info);
-	printf("This is %s chip with %d CPU core(s), WiFi%s%s%s, ",
-		   CONFIG_IDF_TARGET,
-		   chip_info.cores,
-		   (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-		   (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "",
-		   (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
+    unsigned majorRev = chipInfo.revision / 100;
+    unsigned minorRev = chipInfo.revision % 100;
+    printf("silicon revision v%d.%d, ", majorRev, minorRev);
+    if (esp_flash_get_size(NULL, &flashSize) != ESP_OK) {
+        printf("Get flash size failed");
+        return;
+    }
 
-	unsigned major_rev = chip_info.revision / 100;
-	unsigned minor_rev = chip_info.revision % 100;
-	printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-	if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-		printf("Get flash size failed");
-		return;
-	}
+    printf("%" PRIu32 "MB %s flash\n", flashSize / (uint32_t) (1024 * 1024),
+           (chipInfo.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-	printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
-		   (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
 
-	printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
-
-	start_smartknob();
-}
-
+    startSmartknob();
 }

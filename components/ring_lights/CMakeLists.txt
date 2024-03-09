@@ -1,6 +1,6 @@
 set(COMPONENT_ADD_INCLUDEDIRS "include")
-set(COMPONENT_SRCS src/ring_lights.cpp
-        src/effects.cpp)
+set(COMPONENT_SRCS src/RightLights.cpp
+        src/Effects.cpp)
 
 idf_component_register(
         SRCS ${COMPONENT_SRCS}
