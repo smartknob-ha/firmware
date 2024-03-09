@@ -1,4 +1,6 @@
-# firmware-idf
+# Smartknob-HA firmware
+
+Firmware meant to run on the [Smartknob-HA board](https://github.com/smartknob-ha/hardware/).
 
 ## Contributing
 
