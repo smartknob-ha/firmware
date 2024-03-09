@@ -71,7 +71,7 @@ namespace ringLights {
 
         inline static led_strip_t m_strip = {
                 .type       = LED_TYPE,
-                .isRgbw     = false,
+                .is_rgbw     = false,
                 .brightness = CONFIG_LED_MAX_BRIGHTNESS,
                 .length     = NUM_LEDS,
                 .gpio       = gpio_num_t(DATA_PIN),
