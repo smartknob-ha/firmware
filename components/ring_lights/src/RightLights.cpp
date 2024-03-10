@@ -9,11 +9,11 @@ namespace ringLights {
 
 #define FLUSH_TASK_DELAY_MS (1000 / CONFIG_LED_STRIP_REFRESH_RATE)
 
-    res RingLights::getStatus() {
+    sdk::res RingLights::getStatus() {
         return Ok(m_status);
     }
 
-    res RingLights::initialize() {
+    sdk::res RingLights::initialize() {
         led_strip_install();
         esp_err_t err = led_strip_init(&m_strip);
         if (err) {
@@ -23,18 +23,18 @@ namespace ringLights {
         ESP_LOGI(TAG, "Starting ring lights");
         m_run = true;
         xTaskCreatePinnedToCore(startFlush, "ring lights", 4096, this, 99, NULL, 0);
-        return Ok(ComponentStatus::INITIALIZING);
+        return Ok(sdk::ComponentStatus::INITIALIZING);
     }
 
     void RingLights::startFlush(void* _this) {
         auto* m     = (RingLights*) (_this);
-        m->m_status = ComponentStatus::INITIALIZING;
+        m->m_status = sdk::ComponentStatus::INITIALIZING;
         m->flushThread();
     }
 
     void RingLights::flushThread() {
         ESP_LOGI(TAG, "Hello from ring lights thread!");
-        m_status = ComponentStatus::RUNNING;
+        m_status = sdk::ComponentStatus::RUNNING;
 
         while (m_run) {
             m_currentEffectFunc_p(m_currentEffectBuffer, m_currentEffect);
@@ -50,7 +50,7 @@ namespace ringLights {
             esp_err_t err = led_strip_flush(&m_strip);
             if (err) {
                 ESP_LOGE(TAG, "Failed to flush led strip: %s", esp_err_to_name(err));
-                m_status = ComponentStatus::STOPPING;
+                m_status = sdk::ComponentStatus::STOPPING;
                 snprintf(m_errStatus.data(), m_errStatus.max_size() - 1, "%s", esp_err_to_name(err));
             }
             vTaskDelay(pdMS_TO_TICKS(FLUSH_TASK_DELAY_MS));
@@ -77,7 +77,7 @@ namespace ringLights {
         }
     }
 
-    res RingLights::run() {
+    sdk::res RingLights::run() {
         effectMsg effect_msg_;
         if (effectMsgQueue::dequeue(effect_msg_, 0) == pdTRUE) {
             if (effect_msg_.effect == m_currentEffect.effect) {
@@ -100,18 +100,18 @@ namespace ringLights {
             m_strip.brightness = brightnessMsg_.brightness;
         }
 
-        if (m_status == ComponentStatus::RUNNING) {
-            return Ok(ComponentStatus::RUNNING);
+        if (m_status == sdk::ComponentStatus::RUNNING) {
+            return Ok(sdk::ComponentStatus::RUNNING);
         } else {
             return Err(m_errStatus);
         }
     }
 
-    res RingLights::stop() {
+    sdk::res RingLights::stop() {
         m_run = false;
 
         led_strip_free(&m_strip);
-        return Ok(ComponentStatus::STOPPED);
+        return Ok(sdk::ComponentStatus::STOPPED);
     }
 
 } // namespace ringLights

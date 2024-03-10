@@ -10,11 +10,11 @@
 #define SCL_GPIO_NUM CONFIG_LIGHT_SENSOR_SCL_GPIO_NUM
 
 
-res LightSensor::getStatus() { return Ok(m_status); }
+sdk::res LightSensor::getStatus() { return Ok(m_status); }
 
-res LightSensor::initialize() {
+sdk::res LightSensor::initialize() {
     esp_err_t err;
-    m_status = ComponentStatus::INITIALIZING;
+    m_status = sdk::ComponentStatus::INITIALIZING;
     ESP_LOGI(TAG, "Setting up veml7700 light sensor component");
 
     memset(&m_dev, 0, sizeof(i2c_dev_t));
@@ -31,21 +31,21 @@ res LightSensor::initialize() {
     err             = veml7700_set_config(&m_dev, &m_conf);
     if (err) { RETURN_ON_ERR_MSG(err, "Failed to set light sensor config: "); }
 
-    m_status = ComponentStatus::RUNNING;
-    return Ok(ComponentStatus::INITIALIZING);
+    m_status = sdk::ComponentStatus::RUNNING;
+    return Ok(sdk::ComponentStatus::INITIALIZING);
 }
 
-res LightSensor::stop() {
+sdk::res LightSensor::stop() {
     m_conf.shutdown = 1;
     esp_err_t err   = veml7700_set_config(&m_dev, &m_conf);
     if (err) { RETURN_ON_ERR_MSG(err, "Failed to set light sensor config: "); }
-    m_status = ComponentStatus::DEINITIALIZED;
-    return Ok(ComponentStatus::STOPPED);
+    m_status = sdk::ComponentStatus::DEINITIALIZED;
+    return Ok(sdk::ComponentStatus::STOPPED);
 }
 
 Result<uint32_t, etl::string<128>> LightSensor::readLightLevel() {
     uint32_t value_lux;
-    if (m_status != ComponentStatus::RUNNING) { return Err(etl::string<128>("not initialized")); }
+    if (m_status != sdk::ComponentStatus::RUNNING) { return Err(etl::string<128>("not initialized")); }
 
     esp_err_t err = veml7700_get_ambient_light(&m_dev, &m_conf, &value_lux);
     if (err) { RETURN_ON_ERR_MSG(err, "Failed to read ambient light value: "); }

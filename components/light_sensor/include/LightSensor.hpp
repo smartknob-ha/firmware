@@ -6,7 +6,7 @@
 
 #include "Component.hpp"
 
-class LightSensor : public Component {
+class LightSensor : public sdk::Component {
 public:
     LightSensor(){};
     ~LightSensor() = default;
@@ -14,16 +14,16 @@ public:
     /* Component override functions */
     etl::string<50> getTag() override { return TAG; };
 
-    res getStatus() override;
-    res initialize() override;
-    res stop() override;
+    sdk::res getStatus() override;
+    sdk::res initialize() override;
+    sdk::res stop() override;
 
     Result<uint32_t, etl::string<128>> readLightLevel();
 
 private:
     static const inline char TAG[] = "Light sensor";
 
-    ComponentStatus m_status = ComponentStatus::UNINITIALIZED;
+    sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
     etl::string<128> m_errStatus;
 
     i2c_dev_t         m_dev;
