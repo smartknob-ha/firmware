@@ -21,19 +21,19 @@ namespace ringLights {
 #error Please define a valid LED type using menuconfig
 #endif
 
-    class RingLights : public Component,
-                       public HasQueue<1, effectMsg, 0>,
-                       public HasQueue<1, brightnessMsg, 0> {
+    class RingLights : public sdk::Component,
+                       public sdk::HasQueue<1, effectMsg, 0>,
+                       public sdk::HasQueue<1, brightnessMsg, 0> {
     public:
         RingLights()  = default;
         ~RingLights() = default;
 
         /* Component override functions */
         etl::string<50> getTag() override { return TAG; };
-        res             getStatus() override;
-        res             initialize() override;
-        res             run() override;
-        res             stop() override;
+        sdk::res             getStatus() override;
+        sdk::res             initialize() override;
+        sdk::res             run() override;
+        sdk::res             stop() override;
 
         void enqueue(effectMsg& msg) override { effectMsgQueue::enqueue(msg); }
         void enqueue(brightnessMsg& msg) override { brightnessMsgQueue::enqueue(msg); }
@@ -48,7 +48,7 @@ namespace ringLights {
         rgb_t    m_newEffectBuffer[NUM_LEDS]{};
         uint32_t m_effectTransitionTicksLeft = 0;
 
-        ComponentStatus m_status = ComponentStatus::UNINITIALIZED;
+        sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
         etl::string<128> m_errStatus;
         bool             m_run = false;
 
