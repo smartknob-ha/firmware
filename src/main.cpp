@@ -9,15 +9,33 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "DisplayDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
 
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
+
+    DisplayDriver::Config displayConfig{
+            .display_dc        = GPIO_NUM_16,
+            .display_reset     = GPIO_NUM_4,
+            .display_backlight = GPIO_NUM_7,
+            .spi_sclk          = GPIO_NUM_5,
+            .spi_mosi          = GPIO_NUM_6,
+            .spi_cs            = GPIO_NUM_15,
+            .rotation          = DisplayRotation::LANDSCAPE};
+    DisplayDriver displayDriver(displayConfig);
+
     sdk::Manager::instance().addComponent(ringLights);
     sdk::Manager::instance().addComponent(lightSensor);
+    sdk::Manager::instance().addComponent(displayDriver);
 
     sdk::Manager::instance().start();
+
+    // Wait for components to actually be running
+    vTaskDelay(pdMS_TO_TICKS(4000));
+
+    displayDriver.setBrightness(255);
 
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
