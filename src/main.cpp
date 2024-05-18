@@ -15,11 +15,11 @@
 
 [[noreturn]] void start_smartknob(void) {
 
-	ring_lights::ring_lights ring_lights_;
-    light_sensor::light_sensor light_sensor_;
+//	ring_lights::ring_lights ring_lights_;
+//    light_sensor::light_sensor light_sensor_;
     strain_sensor::strain_sensor strain_sensor_;
-    sdk::manager::instance().add_component(ring_lights_);
-    sdk::manager::instance().add_component(light_sensor_);
+//    sdk::manager::instance().add_component(ring_lights_);
+//    sdk::manager::instance().add_component(light_sensor_);
     sdk::manager::instance().add_component(strain_sensor_);
 
 	sdk::manager::instance().start();
@@ -30,20 +30,28 @@
 	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
 	msg.effect = ring_lights::RAINBOW_RADIAL;
 	msg.param_a = 10;
-	ring_lights_.enqueue(msg);
+//	ring_lights_.enqueue(msg);
+
+    auto res = strain_sensor_.initialize();
+    if (res.isErr()) {
+        ESP_LOGE("main", "initialize error: %s", res.unwrapErr().c_str());
+    }
 
 	bool flip_flop = true;
     int count = 0;
 	for(;;) {
-	    if (count++ > 10) {
-	        if (auto light = light_sensor_.read_light_level(); light.isOk()) {
-	            ESP_LOGI("main", "light value: %ld", light.unwrap());
-	        }
-	        if (auto strain = strain_sensor_.read_light_level(); strain.isOk()) {
-	            ESP_LOGI("main", "strain value: %ld", strain.unwrap());
-	        }
-	        count = 0;
-	    }
+        if (res.isErr()) {
+            ESP_LOGE("main", "initialize error: %s", res.unwrapErr().c_str());
+        } else {
+            if (count++ > 10) {
+                if (auto strain = strain_sensor_.read_strain_level(); strain.isOk()) {
+                    ESP_LOGI("main", "strain value: %ld", strain.unwrap());
+                } else {
+                    ESP_LOGE("main", "error: %s", strain.unwrapErr().c_str());
+                }
+                count = 0;
+            }
+        }
 
 		if (flip_flop) {
 			msg.param_a += 10;
@@ -57,7 +65,7 @@
 			flip_flop = false;
 		}
 
-		ring_lights_.enqueue(msg);
+//		ring_lights_.enqueue(msg);
 		vTaskDelay(pdMS_TO_TICKS(100));
 	}
 }

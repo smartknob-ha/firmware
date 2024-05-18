@@ -18,7 +18,7 @@ namespace strain_sensor {
         res             initialize() override;
         res             stop() override;
 
-        Result<int32_t, etl::string<128>> read_light_level();
+        Result<int32_t, etl::string<128>> read_strain_level();
 
     private:
         static const inline char TAG[] = "Light sensor";

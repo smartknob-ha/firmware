@@ -28,7 +28,7 @@ namespace strain_sensor {
         return Ok(STOPPED);
     }
 
-    Result<int32_t, etl::string<128>> strain_sensor::read_light_level() {
+    Result<int32_t, etl::string<128>> strain_sensor::read_strain_level() {
         int32_t data;
         if (m_status != RUNNING) { return Err(etl::string<128>("not initialized")); }
 
