@@ -1,0 +1,26 @@
+menu "Smartknob magnetic encoder"
+    config MAGNETIC_ENCODER_SPI_MISO_GPIO
+        int "MISO GPIO Num"
+        default 2
+        help
+            GPIO number for magnetic encoder SPI MISO.
+
+    config MAGNETIC_ENCODER_SPI_CLK_GPIO
+        int "SPI CLK GPIO Num"
+            default 1
+            help
+                GPIO number for magnetic encoder SPI clock.
+
+    config MAGNETIC_ENCODER_SPI_CS_GPIO
+        int "SPI CS GPIO Num"
+            default 38
+            help
+                GPIO number for magnetic encoder SPI chip select.
+
+    config MAGNETIC_ENCODER_SPI_CLOCK_SPEED
+        int "SPI Clock Speed"
+            range 100000 15000000
+            default 10000000
+            help
+                SPI clock speed in Hz.
+endmenu

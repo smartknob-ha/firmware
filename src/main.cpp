@@ -9,12 +9,14 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "MagneticEncoder.hpp"
 #include "DisplayDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
 
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
+	MagneticEncoder        magneticEncoder;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -28,6 +30,7 @@
 
     sdk::Manager::instance().addComponent(ringLights);
     sdk::Manager::instance().addComponent(lightSensor);
+	sdk::Manager::instance().addComponent(magneticEncoder);
     sdk::Manager::instance().addComponent(displayDriver);
 
     sdk::Manager::instance().start();
@@ -53,6 +56,9 @@
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
+
+	        auto degrees = magneticEncoder.get_degrees();
+	        ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
             count = 0;
         }
 
