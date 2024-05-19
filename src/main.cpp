@@ -9,13 +9,16 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "../components/magnetic_encoder/include/MagneticEncoder.hpp"
 
 [[noreturn]] void startSmartknob(void) {
 
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
+	MagneticEncoder        magneticEncoder;
     sdk::Manager::instance().addComponent(ringLights);
     sdk::Manager::instance().addComponent(lightSensor);
+	sdk::Manager::instance().addComponent(magneticEncoder);
 
     sdk::Manager::instance().start();
 
@@ -31,26 +34,28 @@
     bool flipFlop = true;
     int  count    = 0;
     for (;;) {
-        if (count++ > 10) {
-            if (auto light = lightSensor.readLightLevel(); light.isOk()) {
-                ESP_LOGI("main", "light value: %ld", light.unwrap());
-            }
-            count = 0;
-        }
-
-        if (flipFlop) {
-            msg.paramA += 1;
-        } else {
-            msg.paramA -= 1;
-        }
-
-        if (msg.paramA == 0) {
-            flipFlop = true;
-        } else if (msg.paramA == 1000) {
-            flipFlop = false;
-        }
-
-        ringLights.enqueue(msg);
+		auto degrees = magneticEncoder.get_degrees();
+		ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
+//        if (count++ > 10) {
+//            if (auto light = lightSensor.readLightLevel(); light.isOk()) {
+//                ESP_LOGI("main", "light value: %ld", light.unwrap());
+//            }
+//            count = 0;
+//        }
+//
+//        if (flipFlop) {
+//            msg.paramA += 1;
+//        } else {
+//            msg.paramA -= 1;
+//        }
+//
+//        if (msg.paramA == 0) {
+//            flipFlop = true;
+//        } else if (msg.paramA == 1000) {
+//            flipFlop = false;
+//        }
+//
+//        ringLights.enqueue(msg);
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

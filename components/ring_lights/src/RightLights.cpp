@@ -22,7 +22,7 @@ namespace ringLights {
 
         ESP_LOGI(TAG, "Starting ring lights");
         m_run = true;
-        xTaskCreatePinnedToCore(startFlush, "ring lights", 4096, this, 99, NULL, 0);
+        xTaskCreatePinnedToCore(startFlush, "ring lights", 4096, this, 24, NULL, 0);
         return Ok(sdk::ComponentStatus::INITIALIZING);
     }
 
