@@ -1,0 +1,20 @@
+menu "Smartknob Display Driver"
+    config DISPLAY_SPI_CLOCK_SPEED
+        int "Default SPI clock speed (in MHz)"
+        default 80
+    config DISPLAY_WIDTH
+        int "Display width (in pixels)"
+        default 240
+    config DISPLAY_HEIGHT
+        int "Display height (in pixels)"
+        default DISPLAY_WIDTH
+    config DISPLAY_SPI_BUS
+        int "SPI bus number"
+        default 1
+    config DISPLAY_BUFFER_MULTIPLIER
+        int "Calculate buffer size as DISPLAY_WIDTH * sizeof(pixel) * multiplier"
+        default 50
+    config DISPLAY_FRAMEBUFFER_IN_PSRAM
+        bool "Place framebuffer in PSRAM"
+        default y
+endmenu
