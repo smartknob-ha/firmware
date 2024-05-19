@@ -14,6 +14,18 @@ namespace strain_sensor {
         m_status = INITIALIZING;
         ESP_LOGI(TAG, "Setting up hx711 strain sensor component");
 
+	    gpio_config_t io_conf = {};
+	    io_conf.intr_type = GPIO_INTR_DISABLE;
+	    io_conf.mode = GPIO_MODE_OUTPUT;
+	    io_conf.pin_bit_mask = (1ULL<< m_hx711_dev.pd_sck);
+	    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	    gpio_config(&io_conf);
+
+	    io_conf.pin_bit_mask = (1ULL<< m_hx711_dev.dout);
+	    io_conf.mode = GPIO_MODE_INPUT;
+	    gpio_config(&io_conf);
+
         err = hx711_init(&m_hx711_dev);
         if (err) { RETURN_ON_ERR_MSG(err, "Failed to initalize hx711: "); }
 
