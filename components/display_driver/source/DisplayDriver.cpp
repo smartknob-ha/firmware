@@ -146,7 +146,7 @@ sdk::res DisplayDriver::initialize() {
         ESP_LOGD(TAG, "Resuming display driver");
         p_display->resume();
         m_status = sdk::ComponentStatus::RUNNING;
-        return Ok(m_status);
+        return m_status;
     }
     m_status = sdk::ComponentStatus::INITIALIZING;
     ESP_LOGD(TAG, "Initializing display driver");
@@ -211,7 +211,7 @@ sdk::res DisplayDriver::initialize() {
     m_initialized = true;
     m_status      = sdk::ComponentStatus::RUNNING;
     ESP_LOGD(TAG, "Finished initializing display driver");
-    return Ok(m_status);
+    return m_status;
 }
 
 void DisplayDriver::setBrightness(uint8_t brightness) {
@@ -219,7 +219,7 @@ void DisplayDriver::setBrightness(uint8_t brightness) {
 }
 
 sdk::res DisplayDriver::getStatus() {
-    return Ok(m_status);
+    return m_status;
 }
 
 sdk::res DisplayDriver::run() {
@@ -227,12 +227,12 @@ sdk::res DisplayDriver::run() {
     if (DisplayMsgQueue::dequeue(displayMsg_, 0) == pdTRUE) {
         setBrightness(displayMsg_.brightness);
     }
-    return Ok(m_status);
+    return m_status;
 }
 
 sdk::res DisplayDriver::stop() {
     if (m_status != sdk::ComponentStatus::STOPPED) {
-        return Ok(sdk::ComponentStatus::STOPPED);
+        return sdk::ComponentStatus::STOPPED;
     }
 
     ESP_LOGD(TAG, "Pausing display driver");
@@ -244,5 +244,5 @@ sdk::res DisplayDriver::stop() {
     p_display->pause();
 
     m_status = sdk::ComponentStatus::STOPPED;
-    return Ok(m_status);
+    return m_status;
 }

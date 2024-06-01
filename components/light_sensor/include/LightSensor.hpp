@@ -5,6 +5,7 @@
 #include <veml7700.h>
 
 #include "Component.hpp"
+#include <expected>
 
 class LightSensor : public sdk::Component {
 public:
@@ -18,7 +19,7 @@ public:
     sdk::res initialize() override;
     sdk::res stop() override;
 
-    Result<uint32_t, etl::string<128>> readLightLevel();
+    std::expected<uint32_t, std::error_code> readLightLevel();
 
 private:
     static const inline char TAG[] = "Light sensor";
