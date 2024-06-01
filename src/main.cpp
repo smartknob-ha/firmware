@@ -22,6 +22,8 @@
 
     sdk::Manager::instance().start();
 
+	esp_log_level_set(magneticEncoder.getTag().c_str(), esp_log_level_t::ESP_LOG_INFO);
+
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
@@ -36,6 +38,8 @@
     for (;;) {
 		auto degrees = magneticEncoder.get_degrees();
 		ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
+
+		msg.paramA = static_cast<int16_t>(round(degrees.value()));
 //        if (count++ > 10) {
 //            if (auto light = lightSensor.readLightLevel(); light.isOk()) {
 //                ESP_LOGI("main", "light value: %ld", light.unwrap());
@@ -55,7 +59,7 @@
 //            flipFlop = false;
 //        }
 //
-//        ringLights.enqueue(msg);
+        ringLights.enqueue(msg);
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

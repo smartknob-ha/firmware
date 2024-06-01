@@ -4,6 +4,17 @@ sdk::res MagneticEncoder::getStatus() {
 	return Ok(m_status);
 }
 sdk::res MagneticEncoder::initialize() {
+
+	esp_err_t ret;
+	// Initialize the SPI bus
+	auto spi_num = SPI2_HOST;
+	ret = spi_bus_initialize(spi_num, &m_spi_buscfg, SPI_DMA_CH_AUTO);
+	ESP_ERROR_CHECK(ret);
+	// Attach the encoder to the SPI bus
+	ret = spi_bus_add_device(spi_num, &m_spi_devcfg, &m_spi_dev);
+	ESP_ERROR_CHECK(ret);
+
+	m_dev.set_log_verbosity(espp::Logger::Verbosity::NONE);
 	std::error_code err;
 	m_dev.initialize(false, err);
 
@@ -47,7 +58,7 @@ bool MagneticEncoder::read(uint8_t* data, size_t len) {
 		.rxlength = len * 8,
 		.user = nullptr,
 		.tx_buffer = nullptr,
-		.rx_buffer = data,
+		.rx_buffer = nullptr,
 	};
 	if (len <= 4) {
 		t.flags = SPI_TRANS_USE_RXDATA;
@@ -67,9 +78,11 @@ bool MagneticEncoder::read(uint8_t* data, size_t len) {
 }
 
 std::optional<double> MagneticEncoder::get_degrees() {
-	return std::optional<double>(m_dev.get_degrees());
+	ESP_LOGD(TAG, "get_degrees");
+	return std::optional<double>(m_dev.get_degrees() * - 1.0l);
 }
 
 std::optional<double> MagneticEncoder::get_radians() {
+	ESP_LOGD(TAG, "get_radians");
 	return std::optional<double>(m_dev.get_radians());
 }
