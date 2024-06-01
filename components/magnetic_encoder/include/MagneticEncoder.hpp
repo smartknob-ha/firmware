@@ -11,16 +11,17 @@
 #include <mt6701.hpp>
 #include <driver/spi_master.h>
 
-using Mt6701 = espp::Mt6701<espp::Mt6701Interface::SSI>;
+using Mt6701_spi = espp::Mt6701<espp::Mt6701Interface::SSI>;
 using ButterFilter = espp::ButterworthFilter<2, espp::BiquadFilterDf2>;
 
-class MagneticEncoder : public sdk::Component {
+class MagneticEncoder final : public sdk::Component {
 public:
 	MagneticEncoder() :
 		m_filter({.normalized_cutoff_frequency = 2.0f * m_filter_cutoff_hz * m_encoder_update_period}),
 		m_dev({
 			.read = std::bind(&MagneticEncoder::read, this, std::placeholders::_1, std::placeholders::_2),
-			.velocity_filter = std::bind(&ButterFilter ::update, m_filter, std::placeholders::_1),
+			.velocity_filter = std::bind(&MagneticEncoder::m_filter_fn, this, std::placeholders::_1),
+			.auto_init = false,
 			.run_task = false,
 			.log_level = espp::Logger::Verbosity::INFO})
 			{};
@@ -61,9 +62,11 @@ private:
 
 	static constexpr float m_filter_cutoff_hz = 10.0f;
 	static constexpr float m_encoder_update_period = 0.001f; // seconds
-	ButterFilter m_filter;
 
-	Mt6701 m_dev;
+	ButterFilter m_filter;
+	float m_filter_fn(float raw) { return m_filter.update(raw); };
+
+	Mt6701_spi m_dev;
 
 	bool read(uint8_t* data, size_t len);
 };
