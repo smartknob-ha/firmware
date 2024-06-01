@@ -49,7 +49,7 @@ namespace ringLights {
         uint32_t m_effectTransitionTicksLeft = 0;
 
         sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
-        etl::string<128> m_errStatus;
+        std::error_code m_errStatus;
         bool             m_run = false;
 
 

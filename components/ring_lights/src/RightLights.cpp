@@ -4,26 +4,28 @@
 #include "RightLights.hpp"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_system_error.hpp"
 
 namespace ringLights {
 
 #define FLUSH_TASK_DELAY_MS (1000 / CONFIG_LED_STRIP_REFRESH_RATE)
 
     sdk::res RingLights::getStatus() {
-        return Ok(m_status);
+        return m_status;
     }
 
     sdk::res RingLights::initialize() {
         led_strip_install();
         esp_err_t err = led_strip_init(&m_strip);
         if (err) {
-            RETURN_ON_ERR_MSG(err, "Failed to init led strip: ");
+            ESP_LOGE(TAG, "Failed to init led strip: %s", esp_err_to_name(err));
+            return std::unexpected(std::make_error_code(err));
         }
 
         ESP_LOGI(TAG, "Starting ring lights");
         m_run = true;
-        xTaskCreatePinnedToCore(startFlush, "ring lights", 4096, this, 99, NULL, 0);
-        return Ok(sdk::ComponentStatus::INITIALIZING);
+        xTaskCreatePinnedToCore(startFlush, "ring lights", 4096, this, 24, NULL, 0);
+        return sdk::ComponentStatus::INITIALIZING;
     }
 
     void RingLights::startFlush(void* _this) {
@@ -51,7 +53,7 @@ namespace ringLights {
             if (err) {
                 ESP_LOGE(TAG, "Failed to flush led strip: %s", esp_err_to_name(err));
                 m_status = sdk::ComponentStatus::STOPPING;
-                snprintf(m_errStatus.data(), m_errStatus.max_size() - 1, "%s", esp_err_to_name(err));
+                m_errStatus = std::make_error_code(err);
             }
             vTaskDelay(pdMS_TO_TICKS(FLUSH_TASK_DELAY_MS));
         }
@@ -101,9 +103,9 @@ namespace ringLights {
         }
 
         if (m_status == sdk::ComponentStatus::RUNNING) {
-            return Ok(sdk::ComponentStatus::RUNNING);
+            return sdk::ComponentStatus::RUNNING;
         } else {
-            return Err(m_errStatus);
+            return std::unexpected(m_errStatus);
         }
     }
 
@@ -111,7 +113,7 @@ namespace ringLights {
         m_run = false;
 
         led_strip_free(&m_strip);
-        return Ok(sdk::ComponentStatus::STOPPED);
+        return sdk::ComponentStatus::STOPPED;
     }
 
 } // namespace ringLights

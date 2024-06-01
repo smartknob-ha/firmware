@@ -50,8 +50,8 @@
     int  count    = 0;
     for (;;) {
         if (count++ > 10) {
-            if (auto light = lightSensor.readLightLevel(); light.isOk()) {
-                ESP_LOGI("main", "light value: %ld", light.unwrap());
+            if (auto light = lightSensor.readLightLevel(); light.has_value()) {
+                ESP_LOGI("main", "light value: %ld", light.value());
             }
             count = 0;
         }
