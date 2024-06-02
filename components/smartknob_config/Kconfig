@@ -2,4 +2,5 @@ menu "Smartknob Config"
     rsource "../ring_lights/config"
     rsource "../light_sensor/config"
     rsource "../display_driver/config"
+    rsource "../magnetic_encoder/config"
 endmenu
