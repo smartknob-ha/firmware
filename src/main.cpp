@@ -52,26 +52,16 @@
     bool flipFlop = true;
     int  count    = 0;
     for (;;) {
+	    auto degrees = magneticEncoder.get_degrees();
+
         if (count++ > 10) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
 
-	        auto degrees = magneticEncoder.get_degrees();
+
 	        ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
             count = 0;
-        }
-
-        if (flipFlop) {
-            msg.paramA += 1;
-        } else {
-            msg.paramA -= 1;
-        }
-
-        if (msg.paramA == 0) {
-            flipFlop = true;
-        } else if (msg.paramA == 1000) {
-            flipFlop = false;
         }
 
         ringLights.enqueue(msg);

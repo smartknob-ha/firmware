@@ -35,8 +35,8 @@ public:
 	sdk::res run() override;
 	sdk::res stop() override;
 
-	std::optional<double> get_degrees();
-	std::optional<double> get_radians();
+	std::expected<double, std::error_code> get_degrees();
+	std::expected<double, std::error_code> get_radians();
 
 private:
 	static const inline char TAG[] = "Magnetic encoder";

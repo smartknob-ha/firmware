@@ -1,4 +1,10 @@
 menu "Smartknob magnetic encoder"
+    config MAGNETIC_ENCODER_SPI_BUS
+        int "SPI bus number"
+        default 2
+        help
+            SPI bus used for the magnetic encoder, make sure this is not used by other SPI components that are not on the same physical bus
+
     config MAGNETIC_ENCODER_SPI_MISO_GPIO
         int "MISO GPIO Num"
         default 2

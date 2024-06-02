@@ -1,13 +1,12 @@
 #include "../include/MagneticEncoder.hpp"
 
 sdk::res MagneticEncoder::getStatus() {
-	return Ok(m_status);
+	return m_status;
 }
 sdk::res MagneticEncoder::initialize() {
-
 	esp_err_t ret;
 	// Initialize the SPI bus
-	auto spi_num = SPI2_HOST;
+	auto spi_num = static_cast<spi_host_device_t>(CONFIG_MAGNETIC_ENCODER_SPI_BUS);
 	ret = spi_bus_initialize(spi_num, &m_spi_buscfg, SPI_DMA_CH_AUTO);
 	ESP_ERROR_CHECK(ret);
 	// Attach the encoder to the SPI bus
@@ -19,31 +18,25 @@ sdk::res MagneticEncoder::initialize() {
 	m_dev.initialize(false, err);
 
 	if (err) {
-		etl::string<128> err_msg;
-		snprintf(err_msg.data(), 128, "Failed to initialize magnetic encoder: %s", err.message().c_str());
-		err_msg.repair();
-		return Err(err_msg);
+		return std::unexpected(err);
 	}
 
 	m_status = sdk::ComponentStatus::RUNNING;
-	return Ok(m_status);
+	return m_status;
 }
 
 sdk::res MagneticEncoder::run() {
 	std::error_code err;
 	m_dev.update(err);
 	if (err) {
-		etl::string<128> err_msg;
-		snprintf(err_msg.data(), 128, "Failed to run magnetic encoder: %s", err.message().c_str());
-		err_msg.repair();
-		return Err(err_msg);
+		return std::unexpected(err);
 	}
 
-	return Ok(sdk::ComponentStatus::RUNNING);
+	return sdk::ComponentStatus::RUNNING;
 }
 
 sdk::res MagneticEncoder::stop() {
-	return Ok(sdk::ComponentStatus::RUNNING);
+	return sdk::ComponentStatus::RUNNING;
 }
 
 bool MagneticEncoder::read(uint8_t* data, size_t len) {
@@ -77,12 +70,18 @@ bool MagneticEncoder::read(uint8_t* data, size_t len) {
 	return true;
 }
 
-std::optional<double> MagneticEncoder::get_degrees() {
+std::expected<double, std::error_code> MagneticEncoder::get_degrees() {
 	ESP_LOGD(TAG, "get_degrees");
-	return std::optional<double>(m_dev.get_degrees() * - 1.0l);
+	if (m_status < sdk::ComponentStatus::RUNNING) {
+		return std::unexpected(std::make_error_code(std::errc::address_not_available));
+	}
+	return m_dev.get_degrees() * - 1.0l;
 }
 
-std::optional<double> MagneticEncoder::get_radians() {
+std::expected<double, std::error_code> MagneticEncoder::get_radians() {
 	ESP_LOGD(TAG, "get_radians");
-	return std::optional<double>(m_dev.get_radians());
+	if (m_status < sdk::ComponentStatus::RUNNING) {
+		return std::unexpected(std::make_error_code(std::errc::address_not_available));
+	}
+	return m_dev.get_radians();
 }
