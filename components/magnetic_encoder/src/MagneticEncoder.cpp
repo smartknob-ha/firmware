@@ -40,9 +40,18 @@ sdk::res MagneticEncoder::run() {
 sdk::res MagneticEncoder::stop() {
 	auto err = spi_bus_remove_device(m_spiDev);
 
+	if (err) {
+		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(err)));
+	}
 
+	err = spi_bus_free(static_cast<spi_host_device_t>(CONFIG_MAGNETIC_ENCODER_SPI_BUS));
 
-	return sdk::ComponentStatus::RUNNING;
+	if (err) {
+		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(err)));
+	}
+
+	m_status = sdk::ComponentStatus::STOPPED;
+	return m_status;
 }
 
 bool MagneticEncoder::read(uint8_t* data, size_t len) {
