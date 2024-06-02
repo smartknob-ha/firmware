@@ -82,7 +82,7 @@ namespace ringLights {
 
     struct effectMsg {
         RingLightEffect effect = RAINBOW_UNIFORM;
-	double          paramA = 0.0f;
+        double          paramA = 0.0f;
         int16_t         paramB = 0, paramC = 0;
         hsv_t           primaryColor{{0}, {0}, {0}}, secondaryColor{{0}, {0}, {0}};
     };
