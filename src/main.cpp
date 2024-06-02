@@ -45,14 +45,14 @@
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
     msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
     msg.effect         = ringLights::POINTER;
-    msg.paramA         = 1;
+    msg.paramA         = 1.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
 
-    bool flipFlop = true;
     int  count    = 0;
     for (;;) {
 	    auto degrees = magneticEncoder.get_degrees();
+		auto dev = magneticEncoder.getDevice();
 
         if (count++ > 10) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
@@ -63,6 +63,8 @@
 	        ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
             count = 0;
         }
+
+		msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
         vTaskDelay(pdMS_TO_TICKS(10));

@@ -73,15 +73,21 @@ bool MagneticEncoder::read(uint8_t* data, size_t len) {
 std::expected<double, std::error_code> MagneticEncoder::get_degrees() {
 	ESP_LOGD(TAG, "get_degrees");
 	if (m_status < sdk::ComponentStatus::RUNNING) {
-		return std::unexpected(std::make_error_code(std::errc::address_not_available));
+		return std::unexpected(std::make_error_code(static_cast<std::errc>(ESP_ERR_INVALID_STATE)));
 	}
 	return m_dev.get_degrees() * - 1.0l;
 }
 
 std::expected<double, std::error_code> MagneticEncoder::get_radians() {
-	ESP_LOGD(TAG, "get_radians");
 	if (m_status < sdk::ComponentStatus::RUNNING) {
-		return std::unexpected(std::make_error_code(std::errc::address_not_available));
+		return std::unexpected(std::make_error_code(static_cast<std::errc>(ESP_ERR_INVALID_STATE)));
 	}
 	return m_dev.get_radians();
+}
+std::expected<std::reference_wrapper<Mt6701_spi>, std::error_code> MagneticEncoder::getDevice() {
+	if (m_status < sdk::ComponentStatus::RUNNING) {
+		return std::unexpected(std::make_error_code(static_cast<std::errc>(ESP_ERR_INVALID_STATE)));
+	}
+
+	return m_dev;
 }

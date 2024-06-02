@@ -38,6 +38,8 @@ public:
 	std::expected<double, std::error_code> get_degrees();
 	std::expected<double, std::error_code> get_radians();
 
+	std::expected<std::reference_wrapper<Mt6701_spi>, std::error_code> getDevice();
+
 private:
 	static const inline char TAG[] = "Magnetic encoder";
 	sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
