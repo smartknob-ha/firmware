@@ -14,7 +14,7 @@ namespace ringLights {
 #define RAD_PER_LED (M_TAU / NUM_LEDS)
 
 // Reset an angle to between 0 and +inf
-#define WRAP_NEGATIVE_DEGREE(a) (a < 0 ? 360 - a : a)
+#define WRAP_NEGATIVE_DEGREE(a) (a < 0.0f ? 360.0f + a : a)
 
 #define GET_SMALLEST_DEGREE_DIFFERENCE(a, b) (180.0f - fabs(abs(a - b) - 180.0f))
 
@@ -69,7 +69,7 @@ namespace ringLights {
     }
 
     void effects::pointer(rgb_t (&buffer)[NUM_LEDS], effectMsg& msg) {
-        auto angleDegrees           = static_cast<float>(WRAP_NEGATIVE_DEGREE(msg.paramA) % 360);
+        auto angleDegrees           = WRAP_NEGATIVE_DEGREE(std::fmod(msg.paramA, 360.0));
         auto widthDegree            = static_cast<float>(msg.paramB);
         auto widthHalfPointerDegree = static_cast<float>(widthDegree) / 2.0f;
 
@@ -84,7 +84,7 @@ namespace ringLights {
                 progress = (widthHalfPointerDegree - degreesToCenter) / widthHalfPointerDegree;
             }
 
-            if (0.0f <= progress && progress <= 1.0f) {
+            if (0.1f <= progress && progress <= 1.0f) {
                 color.value = static_cast<uint8_t>(static_cast<double>(msg.primaryColor.value) * abs(progress));
             } else {
                 color.value = 0;
@@ -96,7 +96,7 @@ namespace ringLights {
     }
 
     void effects::percent(rgb_t (&buffer)[NUM_LEDS], effectMsg& msg) {
-        int_fast16_t start = msg.paramA;
+        int_fast16_t start = static_cast<int_fast16_t >(msg.paramA);
         int_fast16_t end   = msg.paramB;
 
         // Scale `end` to percentage
@@ -149,7 +149,7 @@ namespace ringLights {
             pSecondaryColor = msg.secondaryColor;
         }
 
-        double gradientAngle = msg.paramA % 360;
+        double gradientAngle = std::fmod(static_cast<double>(msg.paramA), 360.0);
 
         // Divide by 50 so 100 percent covers the whole unit circle height
         double gradientWidth = static_cast<double>(msg.paramB) / 50.0;
@@ -216,7 +216,7 @@ namespace ringLights {
         }
 
         static int_fast16_t p_angle = 0;
-        p_angle                     = (p_angle + msg.paramA) % 360;
+        p_angle                     = (p_angle + static_cast<int_fast16_t >(round(msg.paramA))) % 360;
         p_angle                     = p_angle <= 0 ? p_angle + 360 : p_angle;
 
         auto led_offset = static_cast<int_fast16_t>(p_angle / DEGREE_PER_LED) % NUM_LEDS;
