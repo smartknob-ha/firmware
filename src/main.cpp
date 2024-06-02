@@ -9,12 +9,14 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "MagneticEncoder.hpp"
 #include "DisplayDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
 
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
+	MagneticEncoder        magneticEncoder;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -28,6 +30,7 @@
 
     sdk::Manager::instance().addComponent(ringLights);
     sdk::Manager::instance().addComponent(lightSensor);
+	sdk::Manager::instance().addComponent(magneticEncoder);
     sdk::Manager::instance().addComponent(displayDriver);
 
     sdk::Manager::instance().start();
@@ -42,31 +45,26 @@
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
     msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
     msg.effect         = ringLights::POINTER;
-    msg.paramA         = 1;
+    msg.paramA         = 1.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
 
-    bool flipFlop = true;
     int  count    = 0;
     for (;;) {
+	    auto degrees = magneticEncoder.get_degrees();
+		auto dev = magneticEncoder.getDevice();
+
         if (count++ > 10) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
+
+
+	        ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
             count = 0;
         }
 
-        if (flipFlop) {
-            msg.paramA += 1;
-        } else {
-            msg.paramA -= 1;
-        }
-
-        if (msg.paramA == 0) {
-            flipFlop = true;
-        } else if (msg.paramA == 1000) {
-            flipFlop = false;
-        }
+		msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
         vTaskDelay(pdMS_TO_TICKS(10));
