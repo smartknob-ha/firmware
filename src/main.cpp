@@ -51,7 +51,7 @@
 
     int  count    = 0;
     for (;;) {
-	    auto degrees = magneticEncoder.get_degrees();
+	    auto degrees = magneticEncoder.getDegrees();
 		auto dev = magneticEncoder.getDevice();
 
         if (count++ > 10) {

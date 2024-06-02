@@ -17,10 +17,10 @@ using ButterFilter = espp::ButterworthFilter<2, espp::BiquadFilterDf2>;
 class MagneticEncoder final : public sdk::Component {
 public:
 	MagneticEncoder() :
-		m_filter({.normalized_cutoff_frequency = 2.0f * m_filter_cutoff_hz * m_encoder_update_period}),
+		m_filter({.normalized_cutoff_frequency = 2.0f * m_filterCutoffHz * m_encoderUpdatePeriod}),
 		m_dev({
 			.read = std::bind(&MagneticEncoder::read, this, std::placeholders::_1, std::placeholders::_2),
-			.velocity_filter = std::bind(&MagneticEncoder::m_filter_fn, this, std::placeholders::_1),
+			.velocity_filter = std::bind(&MagneticEncoder::m_filterFn, this, std::placeholders::_1),
 			.auto_init = false,
 			.run_task = false,
 			.log_level = espp::Logger::Verbosity::INFO})
@@ -35,8 +35,8 @@ public:
 	sdk::res run() override;
 	sdk::res stop() override;
 
-	std::expected<double, std::error_code> get_degrees();
-	std::expected<double, std::error_code> get_radians();
+	std::expected<double, std::error_code> getDegrees();
+	std::expected<double, std::error_code> getRadians();
 
 	std::expected<std::reference_wrapper<Mt6701_spi>, std::error_code> getDevice();
 
@@ -44,8 +44,8 @@ private:
 	static const inline char TAG[] = "Magnetic encoder";
 	sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
 
-	spi_device_handle_t m_spi_dev;
-	spi_bus_config_t m_spi_buscfg {
+	spi_device_handle_t m_spiDev;
+	spi_bus_config_t m_spiBusCfg {
 		.mosi_io_num = -1,
 		.miso_io_num = CONFIG_MAGNETIC_ENCODER_SPI_MISO_GPIO,
 		.sclk_io_num = CONFIG_MAGNETIC_ENCODER_SPI_CLK_GPIO,
@@ -54,7 +54,7 @@ private:
 		.max_transfer_sz = 32
 	};
 
-	spi_device_interface_config_t m_spi_devcfg {
+	spi_device_interface_config_t m_spiDevCfg {
 		.mode = 0,
 		.clock_speed_hz = CONFIG_MAGNETIC_ENCODER_SPI_CLOCK_SPEED,
 		.input_delay_ns = 0,
@@ -62,11 +62,11 @@ private:
 		.queue_size = 1
 	};
 
-	static constexpr float m_filter_cutoff_hz = 10.0f;
-	static constexpr float m_encoder_update_period = 0.001f; // seconds
+	static constexpr float m_filterCutoffHz = 10.0f;
+	static constexpr float m_encoderUpdatePeriod = 0.001f; // seconds
 
 	ButterFilter m_filter;
-	float m_filter_fn(float raw) { return m_filter.update(raw); };
+	float m_filterFn(float raw) { return m_filter.update(raw); };
 
 	Mt6701_spi m_dev;
 
