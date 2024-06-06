@@ -5,6 +5,7 @@
 #include "DisplayDriver.hpp"
 #include "LightSensor.hpp"
 #include "MagneticEncoder.hpp"
+#include "MotorDriver.hpp"
 #include "Manager.hpp"
 #include "RightLights.hpp"
 #include "esp_chip_info.h"
@@ -26,9 +27,9 @@ void lvgl_task(void*) {
 }
 
 [[noreturn]] void startSmartknob(void) {
-    ringLights::RingLights ringLights;
-    LightSensor            lightSensor;
-    MagneticEncoder        magneticEncoder;
+    ringLights::RingLights      ringLights;
+    LightSensor                 lightSensor;
+	MagneticEncoder             magneticEncoder;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -50,14 +51,14 @@ void lvgl_task(void*) {
     // Wait for components to actually be running
     while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
-    auto res = magneticEncoder.getDevice();
-    if (res.has_value()) {
-        //		MotorDriver motorDriver(res.value());
+	auto res = magneticEncoder.getDevice();
+	if (res.has_value()) {
+		MotorDriver motorDriver(res.value());
 
-        //		sdk::Manager::addComponent(motorDriver);
-    } else {
-        ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
-    }
+		sdk::Manager::addComponent(motorDriver);
+	} else {
+		ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
+	}
 
     lv_obj_t* dot = lv_led_create(lv_scr_act());
     lv_obj_align(dot, LV_ALIGN_CENTER, 0, 0);
