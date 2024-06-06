@@ -11,13 +11,15 @@
 #include "freertos/task.h"
 #include "MagneticEncoder.hpp"
 #include "DisplayDriver.hpp"
+//#include "MotorDriver.hpp"
+#include "../components/motor_driver/include/MotorDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
-    ringLights::RingLights ringLights;
-    LightSensor            lightSensor;
-	MagneticEncoder        magneticEncoder;
+    ringLights::RingLights      ringLights;
+    LightSensor                 lightSensor;
+	MagneticEncoder             magneticEncoder;
 
-    DisplayDriver::Config displayConfig{
+	DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
             .display_reset     = GPIO_NUM_4,
             .display_backlight = GPIO_NUM_7,
@@ -39,9 +41,9 @@
 
 	auto res = magneticEncoder.getDevice();
 	if (res.has_value()) {
-//		MotorDriver motorDriver(res.value());
+		MotorDriver motorDriver(res.value());
 
-//		sdk::Manager::addComponent(motorDriver);
+		sdk::Manager::addComponent(motorDriver);
 	} else {
 		ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
 	}
