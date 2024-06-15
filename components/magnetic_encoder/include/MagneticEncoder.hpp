@@ -17,32 +17,32 @@ using ButterFilter = espp::ButterworthFilter<2, espp::BiquadFilterDf2>;
 class MagneticEncoder final : public sdk::Component {
 public:
 	MagneticEncoder() :
-		m_filter({.normalized_cutoff_frequency = 2.0f * m_filterCutoffHz * m_encoderUpdatePeriod}),
-		m_dev({
+		m_filter({.normalized_cutoff_frequency = 2.0f * m_filterCutoffHz * m_encoderUpdatePeriod}) {
+
+		m_dev = std::make_shared<Mt6701_spi>(Mt6701_spi::Config{
 			.read = std::bind(&MagneticEncoder::read, this, std::placeholders::_1, std::placeholders::_2),
 			.velocity_filter = std::bind(&MagneticEncoder::m_filterFn, this, std::placeholders::_1),
 			.auto_init = false,
 			.run_task = false,
-			.log_level = espp::Logger::Verbosity::INFO})
-			{};
+			.log_level = espp::Logger::Verbosity::NONE
+	    });
+	};
 	~MagneticEncoder() = default;
 
 	/* Component override functions */
 	etl::string<50> getTag() override { return TAG; };
 
-	sdk::res getStatus() override;
-	sdk::res initialize() override;
-	sdk::res run() override;
-	sdk::res stop() override;
+	Status initialize() override;
+	Status run() override;
+	Status stop() override;
 
 	std::expected<double, std::error_code> getDegrees();
 	std::expected<double, std::error_code> getRadians();
 
-	std::expected<std::reference_wrapper<Mt6701_spi>, std::error_code> getDevice();
+	std::expected<std::shared_ptr<Mt6701_spi>, std::error_code> getDevice();
 
 private:
 	static const inline char TAG[] = "Magnetic encoder";
-	sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
 
 	spi_device_handle_t m_spiDev;
 	spi_bus_config_t m_spiBusCfg {
@@ -68,7 +68,7 @@ private:
 	ButterFilter m_filter;
 	float m_filterFn(float raw) { return m_filter.update(raw); };
 
-	Mt6701_spi m_dev;
+	std::shared_ptr<Mt6701_spi> m_dev;
 
 	bool read(uint8_t* data, size_t len);
 };

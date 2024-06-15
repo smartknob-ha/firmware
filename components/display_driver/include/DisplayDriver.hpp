@@ -2,8 +2,8 @@
 #define DISPLAY_DRIVER_HPP
 
 #include "Component.hpp"
-#include "etl/string.h"
 #include "driver/gpio.h"
+#include "etl/string.h"
 
 enum class DisplayRotation : uint8_t {
     LANDSCAPE,
@@ -20,12 +20,12 @@ class DisplayDriver : public sdk::Component,
                       public sdk::HasQueue<1, DisplayMsg, 0> {
 public:
     struct Config {
-        gpio_num_t         display_dc;
-        gpio_num_t         display_reset;
-        gpio_num_t         display_backlight;
-        gpio_num_t         spi_sclk;
-        gpio_num_t         spi_mosi;
-        gpio_num_t         spi_cs;
+        gpio_num_t      display_dc;
+        gpio_num_t      display_reset;
+        gpio_num_t      display_backlight;
+        gpio_num_t      spi_sclk;
+        gpio_num_t      spi_mosi;
+        gpio_num_t      spi_cs;
         DisplayRotation rotation;
     };
 
@@ -34,10 +34,9 @@ public:
 
     /* Component override functions */
     etl::string<50> getTag() override { return TAG; };
-    sdk::res        getStatus() override;
-    sdk::res        initialize() override;
-    sdk::res        run() override;
-    sdk::res        stop() override;
+    Status          initialize() override;
+    Status          run() override;
+    Status          stop() override;
 
     void enqueue(DisplayMsg& msg) override { DisplayMsgQueue::enqueue(msg); }
 
@@ -48,13 +47,17 @@ private:
 
     static const inline char TAG[] = "Display driver";
 
-    sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
-    etl::string<128>     m_errStatus;
-    bool                 m_run = false;
+    Status           m_status = Status::UNINITIALIZED;
+    etl::string<128> m_errStatus;
+    bool             m_run = false;
 
     Config m_config;
 
     inline static bool m_initialized = false;
+
+    static void waitForLines();
+
+    static void IRAM_ATTR sendLines(int xs, int ys, int xe, int ye, const uint8_t* data, uint32_t user_data);
 };
 
 #endif // DISPLAY_DRIVER_HPP

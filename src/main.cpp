@@ -13,7 +13,6 @@
 #include "DisplayDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
-
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
 	MagneticEncoder        magneticEncoder;
@@ -28,18 +27,27 @@
             .rotation          = DisplayRotation::LANDSCAPE};
     DisplayDriver displayDriver(displayConfig);
 
-    sdk::Manager::instance().addComponent(ringLights);
-    sdk::Manager::instance().addComponent(lightSensor);
-	sdk::Manager::instance().addComponent(magneticEncoder);
-    sdk::Manager::instance().addComponent(displayDriver);
+    sdk::Manager::addComponent(ringLights);
+    sdk::Manager::addComponent(lightSensor);
+	sdk::Manager::addComponent(magneticEncoder);
+    sdk::Manager::addComponent(displayDriver);
 
-    sdk::Manager::instance().start();
+    sdk::Manager::start();
 
-    // Wait for components to actually be running
-    vTaskDelay(pdMS_TO_TICKS(4000));
+	// Wait for components to actually be running
+	while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
-    displayDriver.setBrightness(255);
+	auto res = magneticEncoder.getDevice();
+	if (res.has_value()) {
+//		MotorDriver motorDriver(res.value());
 
+//		sdk::Manager::addComponent(motorDriver);
+	} else {
+		ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
+	}
+
+//    displayDriver.setBrightness(255);
+//
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
@@ -48,19 +56,18 @@
     msg.paramA         = 1.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
-
-    int  count    = 0;
+//
+    size_t  count    = 0;
     for (;;) {
 	    auto degrees = magneticEncoder.getDegrees();
 		auto dev = magneticEncoder.getDevice();
 
-        if (count++ > 10) {
+        if (count++ > 100) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
 
-
-	        ESP_LOGI("MAIN", "encoder degrees: %lf", degrees.value());
+            ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
             count = 0;
         }
 

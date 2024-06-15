@@ -1,11 +1,10 @@
 #include "../include/MagneticEncoder.hpp"
 #include "esp_system_error.hpp"
 
-sdk::res MagneticEncoder::getStatus() {
-	return m_status;
-}
+using Status = sdk::Component::Status;
+using res    = sdk::Component::res;
 
-sdk::res MagneticEncoder::initialize() {
+Status MagneticEncoder::initialize() {
 	esp_err_t ret;
 	// Initialize the SPI bus
 	auto spi_num = static_cast<spi_host_device_t>(CONFIG_MAGNETIC_ENCODER_SPI_BUS);
@@ -15,43 +14,42 @@ sdk::res MagneticEncoder::initialize() {
 	ret = spi_bus_add_device(spi_num, &m_spiDevCfg, &m_spiDev);
 	ESP_ERROR_CHECK(ret);
 
-	m_dev.set_log_verbosity(espp::Logger::Verbosity::NONE);
+	m_dev->set_log_verbosity(espp::Logger::Verbosity::NONE);
 	std::error_code err;
-	m_dev.initialize(false, err);
+	m_dev->initialize(false, err);
 
 	if (err) {
-		return std::unexpected(err);
+        m_err = ESP_FAIL;
+		return m_status = Status::ERROR;
 	}
-
-	m_status = sdk::ComponentStatus::RUNNING;
-	return m_status;
+	return m_status = Status::RUNNING;
 }
 
-sdk::res MagneticEncoder::run() {
+Status MagneticEncoder::run() {
 	std::error_code err;
-	m_dev.update(err);
+	m_dev->update(err);
 	if (err) {
-		return std::unexpected(err);
+        m_err = ESP_FAIL;
+		return m_status = Status::ERROR;
 	}
 
-	return sdk::ComponentStatus::RUNNING;
+	return m_status = Status::RUNNING;
 }
 
-sdk::res MagneticEncoder::stop() {
+Status MagneticEncoder::stop() {
 	auto err = spi_bus_remove_device(m_spiDev);
-
-	if (err) {
-		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(err)));
+	if (err != ESP_OK) {
+        m_err = err;
+        return m_status = Status::ERROR;
 	}
 
 	err = spi_bus_free(static_cast<spi_host_device_t>(CONFIG_MAGNETIC_ENCODER_SPI_BUS));
-
-	if (err) {
-		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(err)));
+	if (err != ESP_OK) {
+        m_err = err;
+        return m_status = Status::ERROR;
 	}
 
-	m_status = sdk::ComponentStatus::STOPPED;
-	return m_status;
+	return m_status = Status::STOPPED;
 }
 
 bool MagneticEncoder::read(uint8_t* data, size_t len) {
@@ -87,20 +85,20 @@ bool MagneticEncoder::read(uint8_t* data, size_t len) {
 
 std::expected<double, std::error_code> MagneticEncoder::getDegrees() {
 	ESP_LOGD(TAG, "getDegrees");
-	if (m_status < sdk::ComponentStatus::RUNNING) {
+	if (m_status < Status::RUNNING) {
 		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
 	}
-	return m_dev.get_degrees() * - 1.0l;
+	return m_dev->get_degrees() * - 1.0l;
 }
 
 std::expected<double, std::error_code> MagneticEncoder::getRadians() {
-	if (m_status < sdk::ComponentStatus::RUNNING) {
+	if (m_status < Status::RUNNING) {
 		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
 	}
-	return m_dev.get_radians();
+	return m_dev->get_radians();
 }
-std::expected<std::reference_wrapper<Mt6701_spi>, std::error_code> MagneticEncoder::getDevice() {
-	if (m_status < sdk::ComponentStatus::RUNNING) {
+std::expected<std::shared_ptr<Mt6701_spi>, std::error_code> MagneticEncoder::getDevice() {
+	if (m_status < Status::RUNNING) {
 		return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
 	}
 
