@@ -1,7 +1,9 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include "DisplayDriver.hpp"
 #include "LightSensor.hpp"
+#include "MagneticEncoder.hpp"
 #include "Manager.hpp"
 #include "RightLights.hpp"
 #include "esp_chip_info.h"
@@ -9,47 +11,48 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "MagneticEncoder.hpp"
-#include "DisplayDriver.hpp"
-//#include "MotorDriver.hpp"
+// #include "MotorDriver.hpp"
 #include "../components/motor_driver/include/MotorDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
-    ringLights::RingLights      ringLights;
-    LightSensor                 lightSensor;
-	MagneticEncoder             magneticEncoder;
+    ringLights::RingLights ringLights;
+    LightSensor            lightSensor;
+    MagneticEncoder        magneticEncoder;
+    MotorDriver            motorDriver;
 
-	DisplayDriver::Config displayConfig{
-            .display_dc        = GPIO_NUM_16,
-            .display_reset     = GPIO_NUM_4,
-            .display_backlight = GPIO_NUM_7,
-            .spi_sclk          = GPIO_NUM_5,
-            .spi_mosi          = GPIO_NUM_6,
-            .spi_cs            = GPIO_NUM_15,
-            .rotation          = DisplayRotation::LANDSCAPE};
-    DisplayDriver displayDriver(displayConfig);
+    //	DisplayDriver::Config displayConfig{
+    //            .display_dc        = GPIO_NUM_16,
+    //            .display_reset     = GPIO_NUM_4,
+    //            .display_backlight = GPIO_NUM_7,
+    //            .spi_sclk          = GPIO_NUM_5,
+    //            .spi_mosi          = GPIO_NUM_6,
+    //            .spi_cs            = GPIO_NUM_15,
+    //            .rotation          = DisplayRotation::LANDSCAPE};
+    //    DisplayDriver displayDriver(displayConfig);
 
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
-	sdk::Manager::addComponent(magneticEncoder);
-    sdk::Manager::addComponent(displayDriver);
+    sdk::Manager::addComponent(magneticEncoder);
+    //    sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
 
-	// Wait for components to actually be running
-	while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
+    // Wait for components to actually be running
+    while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
-	auto res = magneticEncoder.getDevice();
-	if (res.has_value()) {
-		MotorDriver motorDriver(res.value());
+    auto res = magneticEncoder.getDevice();
+    if (res.has_value()) {
+        motorDriver.setSensor(res.value());
+    } else {
+        ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
+    }
 
-		sdk::Manager::addComponent(motorDriver);
-	} else {
-		ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
-	}
+    esp_log_level_set(motorDriver.getTag().c_str(), ESP_LOG_DEBUG);
 
-//    displayDriver.setBrightness(255);
-//
+    sdk::Manager::addComponent(motorDriver);
+
+    //    displayDriver.setBrightness(255);
+    //
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
@@ -58,11 +61,11 @@
     msg.paramA         = 1.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
-//
-    size_t  count    = 0;
+    //
+    size_t count = 0;
     for (;;) {
-	    auto degrees = magneticEncoder.getDegrees();
-		auto dev = magneticEncoder.getDevice();
+        auto degrees = magneticEncoder.getDegrees();
+        auto dev     = magneticEncoder.getDevice();
 
         if (count++ > 100) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
@@ -73,7 +76,7 @@
             count = 0;
         }
 
-		msg.paramA = degrees.value();
+        msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
         vTaskDelay(pdMS_TO_TICKS(10));
