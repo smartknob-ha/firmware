@@ -13,13 +13,15 @@ using BldcHaptics = espp::BldcHaptics<bldcMotor>;
 
 class MotorDriver final : public sdk::Component {
 public:
-	explicit MotorDriver(std::shared_ptr<encoder> magnetic_encoder) :
-		m_encoder(magnetic_encoder),
-		m_driver(std::make_shared<espp::BldcDriver>(m_driverConfig)) {
+	MotorDriver() = default;
 
-		m_motorConfig.sensor = magnetic_encoder;
+    void setSensor(const std::shared_ptr<encoder> magnetic_encoder) {
+        m_encoder = magnetic_encoder;
+        m_driver = std::make_shared<espp::BldcDriver>(m_driverConfig);
+
+        m_motorConfig.sensor = magnetic_encoder;
         m_motorConfig.driver = m_driver;
-		m_motor = std::make_shared<bldcMotor>(m_motorConfig);
+        m_motor = std::make_shared<bldcMotor>(m_motorConfig);
 
         BldcHaptics::Config hapticsConfig {
                 .motor = *m_motor.get(),
@@ -28,8 +30,8 @@ public:
                 .kd_factor_max = 0.04,
                 .log_level = espp::Logger::Verbosity::NONE
         };
-		m_haptics = std::make_unique<BldcHaptics>(hapticsConfig);
-	};
+        m_haptics = std::make_unique<BldcHaptics>(hapticsConfig);
+    }
 
 	/* Component override functions */
 	etl::string<50> getTag() override { return TAG; };
@@ -64,9 +66,9 @@ private:
 		// spots you feel when rotating it.
 		.num_pole_pairs = 7,
 		.phase_resistance =
-			 5.0f, // tested by running velocity_openloop and seeing if the veloicty is ~correct
+			 3.75f, // tested by running velocity_openloop and seeing if the veloicty is ~correct
 		.kv_rating =
-			 320, // tested by running velocity_openloop and seeing if the velocity is ~correct
+			 640, // tested by running velocity_openloop and seeing if the velocity is ~correct
 		.current_limit = 1.0f,        // Amps
 		.zero_electric_offset = 0.0f, // set to zero to always calibrate, since this is a test
 		.sensor_direction =
