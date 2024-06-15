@@ -1,5 +1,5 @@
 ---
-Checks: '-*,readability'
+Checks: '-*,readability,__llvm_libc-*'
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 FormatStyle:     none

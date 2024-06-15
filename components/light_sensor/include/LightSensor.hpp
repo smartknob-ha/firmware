@@ -7,6 +7,8 @@
 #include "Component.hpp"
 #include <expected>
 
+using Status = sdk::Component::Status;
+
 class LightSensor : public sdk::Component {
 public:
     LightSensor(){};
@@ -15,17 +17,15 @@ public:
     /* Component override functions */
     etl::string<50> getTag() override { return TAG; };
 
-    sdk::res getStatus() override;
-    sdk::res initialize() override;
-    sdk::res stop() override;
+    Status getStatus() override;
+    Status initialize() override;
+    Status run() override;
+    Status stop() override;
 
     std::expected<uint32_t, std::error_code> readLightLevel();
 
 private:
     static const inline char TAG[] = "Light sensor";
-
-    sdk::ComponentStatus m_status = sdk::ComponentStatus::UNINITIALIZED;
-    etl::string<128> m_errStatus;
 
     i2c_dev_t         m_dev;
     veml7700_config_t m_conf = {

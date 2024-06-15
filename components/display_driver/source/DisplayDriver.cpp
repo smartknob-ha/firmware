@@ -9,6 +9,15 @@
 #include "gc9a01.hpp"
 #include "hal/spi_types.h"
 
+#define INIT_RETURN_ON_ERROR(err)                                      \
+    do {                                                               \
+        if (err != ESP_OK) {                                           \
+            ESP_LOGE(TAG, "Failed to init: %s", esp_err_to_name(err)); \
+            m_err           = err;                                     \
+            return m_status = Status::ERROR;                           \
+        }                                                              \
+    } while (0)
+
 static spi_device_handle_t spi;
 static size_t              num_queued_trans = 0;
 static gpio_num_t          display_dc;
@@ -64,7 +73,7 @@ extern "C" void IRAM_ATTR displayWrite(const uint8_t* data, size_t length, uint3
     spi_device_polling_transmit(spi, &t);
 }
 
-static void displayWaitForLines() {
+void DisplayDriver::waitForLines() {
     spi_transaction_t* rtrans;
     esp_err_t          ret;
     // Wait for all transactions to be done and get back the results.
@@ -72,7 +81,7 @@ static void displayWaitForLines() {
         // fmt::print("Waiting for {} lines\n", num_queued_trans);
         ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
         if (ret != ESP_OK) {
-            fmt::print("Could not get trans result: {} '{}'\n", ret, esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Could not get transaction result: %s\n", esp_err_to_name(ret));
         }
         num_queued_trans--;
         // We could inspect rtrans now if we received any info back. The LCD is treated as write-only,
@@ -80,10 +89,10 @@ static void displayWaitForLines() {
     }
 }
 
-void IRAM_ATTR displaySendLines(int xs, int ys, int xe, int ye, const uint8_t* data,
+void DisplayDriver::sendLines(int xs, int ys, int xe, int ye, const uint8_t* data,
                                 uint32_t user_data) {
     // if we haven't waited by now, wait here...
-    displayWaitForLines();
+    waitForLines();
     esp_err_t ret;
     // Transaction descriptors. Declared static so they're not allocated on the stack; we need this
     // memory even when this function is finished because the SPI driver needs access to it even while
@@ -139,16 +148,19 @@ void IRAM_ATTR displaySendLines(int xs, int ys, int xe, int ye, const uint8_t* d
     // to be done and check their status.
 }
 
-sdk::res DisplayDriver::initialize() {
+using Status = sdk::Component::Status;
+using res    = sdk::Component::res;
+
+Status DisplayDriver::initialize() {
 
     // If the display is already initialized, but stopped, we can just resume it
     if (m_initialized) {
         ESP_LOGD(TAG, "Resuming display driver");
         p_display->resume();
-        m_status = sdk::ComponentStatus::RUNNING;
-        return m_status;
+        return m_status = Status::RUNNING;
     }
-    m_status = sdk::ComponentStatus::INITIALIZING;
+
+    m_status = Status::INITIALIZING;
     ESP_LOGD(TAG, "Initializing display driver");
 
     // Used in callbacks, those can't take non-static members directly
@@ -164,7 +176,7 @@ sdk::res DisplayDriver::initialize() {
     buscfg.max_transfer_sz = PIXEL_BUFFER_SIZE * sizeof(lv_color_t);
     // Initialize the SPI bus
     auto ret = spi_bus_initialize(SPI_BUS, &buscfg, SPI_DMA_CH_AUTO);
-    ESP_ERROR_CHECK(ret);
+    INIT_RETURN_ON_ERROR(ret);
 
     // create the spi device
     spi_device_interface_config_t devcfg;
@@ -178,12 +190,12 @@ sdk::res DisplayDriver::initialize() {
     devcfg.post_cb        = displaySpiPostTransfer;
     // Attach the LCD to the SPI bus
     ret = spi_bus_add_device(SPI_BUS, &devcfg, &spi);
-    ESP_ERROR_CHECK(ret);
+    INIT_RETURN_ON_ERROR(ret);
 
     // initialize the controller
     espp::Gc9a01::initialize(espp::display_drivers::Config{
             .lcd_write        = displayWrite,
-            .lcd_send_lines   = displaySendLines,
+            .lcd_send_lines   = sendLines,
             .reset_pin        = m_config.display_reset,
             .data_command_pin = m_config.display_dc,
             .reset_value      = RESET_VALUE,
@@ -209,20 +221,15 @@ sdk::res DisplayDriver::initialize() {
     p_display = std::make_unique<espp::Display>(displayConfig);
 
     m_initialized = true;
-    m_status      = sdk::ComponentStatus::RUNNING;
     ESP_LOGD(TAG, "Finished initializing display driver");
-    return m_status;
+    return m_status = Status::RUNNING;
 }
 
 void DisplayDriver::setBrightness(uint8_t brightness) {
     p_display->set_brightness(brightness / 255.0f);
 }
 
-sdk::res DisplayDriver::getStatus() {
-    return m_status;
-}
-
-sdk::res DisplayDriver::run() {
+Status DisplayDriver::run() {
     DisplayMsg displayMsg_;
     if (DisplayMsgQueue::dequeue(displayMsg_, 0) == pdTRUE) {
         setBrightness(displayMsg_.brightness);
@@ -230,9 +237,9 @@ sdk::res DisplayDriver::run() {
     return m_status;
 }
 
-sdk::res DisplayDriver::stop() {
-    if (m_status != sdk::ComponentStatus::STOPPED) {
-        return sdk::ComponentStatus::STOPPED;
+Status DisplayDriver::stop() {
+    if (m_status == Status::STOPPED) {
+        return Status::STOPPED;
     }
 
     ESP_LOGD(TAG, "Pausing display driver");
@@ -243,6 +250,5 @@ sdk::res DisplayDriver::stop() {
     // Now pause the display update task
     p_display->pause();
 
-    m_status = sdk::ComponentStatus::STOPPED;
-    return m_status;
+    return m_status = Status::STOPPED;
 }
