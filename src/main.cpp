@@ -47,34 +47,47 @@
         ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
     }
 
+    // This is here for show, remove it if you want
+    ringLights::effectMsg msg;
+    msg.primaryColor   = {.hue = HUE_AQUA, .saturation = 255, .value = 150};
+    msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
+    msg.effect         = ringLights::RAINBOW_RADIAL;
+    msg.paramA         = 5.0f;
+    msg.paramB         = 40;
+    ringLights.enqueue(msg);
+
     esp_log_level_set(motorDriver.getTag().c_str(), ESP_LOG_DEBUG);
 
     sdk::Manager::addComponent(motorDriver);
 
+    while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
+
+    motorDriver.setZero();
+
     //    displayDriver.setBrightness(255);
-    //
-    // This is here for show, remove it if you want
-    ringLights::effectMsg msg;
-    msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
-    msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
-    msg.effect         = ringLights::POINTER;
-    msg.paramA         = 1.0f;
-    msg.paramB         = 40;
-    ringLights.enqueue(msg);
-    //
+
+    msg.primaryColor = {.hue = HUE_BLUE, .saturation = 255, .value = 200};
+    msg.effect = ringLights::POINTER;
+
     size_t count = 0;
     for (;;) {
         auto degrees = magneticEncoder.getDegrees();
+        auto radians = magneticEncoder.getRadians();
         auto dev     = magneticEncoder.getDevice();
 
-        if (count++ > 100) {
+        if (++count > 100) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
 
             ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
+            ESP_LOGI("main", "raw encoder degrees: %lf", magneticEncoder.getDevice()->get()->get_degrees());
+
+            ESP_LOGI("main", "encoder radians: %lf", radians.value());
+            ESP_LOGI("main", "raw encoder radians: %lf", magneticEncoder.getDevice()->get()->get_radians());
             count = 0;
         }
+
 
         msg.paramA = degrees.value();
 
