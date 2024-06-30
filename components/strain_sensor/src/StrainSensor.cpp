@@ -46,7 +46,7 @@ Status StrainSensor::stop() {
     return m_status = Status::STOPPED;
 }
 
-std::expected<int32_t, std::error_code> StrainSensor::readStrainLevel() {
+std::expected<unsigned long, std::error_code> StrainSensor::readStrainLevel() {
     int32_t data;
     if (m_status != Status::RUNNING) {
         return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
@@ -55,6 +55,7 @@ std::expected<int32_t, std::error_code> StrainSensor::readStrainLevel() {
     hx711_wait(&m_hx711_dev, 150);
 
     esp_err_t err = hx711_read_data(&m_hx711_dev, &data);
+
     if (err) {
         ESP_LOGE(TAG, "Failed to read ambient light value: %s", esp_err_to_name(err));
         return std::unexpected(std::make_error_code(err));

@@ -4,22 +4,46 @@
 #include <hx711.h>
 
 #include "Component.hpp"
+#include "ConfigProvider.hpp"
 
 class StrainSensor : public sdk::Component {
 public:
+    class Config final : public ConfigObject<3, 512, "Strain sensor"> {
+        using Base = ConfigObject<3, 512, "WIFI Station">;
+
+    public:
+        sdk::ConfigField<unsigned long> restingValue{"", "restingValue", 429386000};
+        sdk::ConfigField<unsigned long> lightPressValue{"", "restingValue", 429384000};
+        sdk::ConfigField<unsigned long> hardPressValue{"", "restingValue", 429382000};
+
+        void allocateFields() {
+            restingValue    = allocate(restingValue);
+            lightPressValue = allocate(lightPressValue);
+            hardPressValue  = allocate(hardPressValue);
+        }
+
+        explicit Config(const nlohmann::json& data) : Base(data) {
+            allocateFields();
+        }
+
+        Config() : Base() {
+            allocateFields();
+        }
+    };
+
     /* Component override functions */
     etl::string<50> getTag() override { return TAG; };
     Status          getStatus() override;
     Status          initialize() override;
     Status          stop() override;
-    Status run() override { return m_status; };
+    Status          run() override { return m_status; };
 
-    std::expected<int32_t, std::error_code> readStrainLevel();
+    std::expected<unsigned long, std::error_code> readStrainLevel();
 
 private:
     static const inline char TAG[] = "Light sensor";
 
-    Status m_status = Status::UNINITIALIZED;
+    Status           m_status = Status::UNINITIALIZED;
     etl::string<128> m_err_status;
 
     hx711_t m_hx711_dev = {

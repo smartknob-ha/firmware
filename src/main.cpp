@@ -73,7 +73,7 @@
             }
 
             ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
-            ESP_LOGI("main", "strain readout: %ld", strainSensor.readStrainLevel().value());
+            ESP_LOGI("main", "strain readout: %lu", strainSensor.readStrainLevel().value());
             count = 0;
         }
 
