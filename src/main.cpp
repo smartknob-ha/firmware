@@ -6,13 +6,12 @@
 #include "MagneticEncoder.hpp"
 #include "Manager.hpp"
 #include "RightLights.hpp"
+#include "MotorDriver.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-// #include "MotorDriver.hpp"
-#include "../components/motor_driver/include/MotorDriver.hpp"
 
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;

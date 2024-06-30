@@ -10,7 +10,7 @@ Status MotorDriver::initialize() {
 	m_motor->initialize();
     m_motor->enable();
 
-
+    setZero();
 
     m_haptics->update_detent_config(espp::detail::COARSE_VALUES_STRONG_DETENTS);
     m_haptics->start();
@@ -19,7 +19,6 @@ Status MotorDriver::initialize() {
 }
 
 Status MotorDriver::run() {
-
     m_motor->loop_foc();
 	return Status::RUNNING;
 }
@@ -43,10 +42,8 @@ void MotorDriver::setSensor(const std::shared_ptr<encoder> magnetic_encoder) {
     m_haptics = std::make_unique<BldcHaptics>(m_hapticsConfig);
 }
 
-void MotorDriver::setDetentConfig(espp::detail::DetentConfig config) {
-    // ToDo: Take a position as a parameter
-    int median = (config.max_position - config.min_position) / 2;
-    m_haptics->set_position(median);
+void MotorDriver::setDetentConfig(espp::detail::DetentConfig config, int position) {
+    m_haptics->set_position(position);
     m_haptics->update_detent_config(config);
 }
 
@@ -80,7 +77,7 @@ void MotorDriver::setZero() {
     ESP_LOGI(TAG, "settled angle: %f", angle);
 
     updateMotionControlType(espp::detail::MotionControlType::TORQUE);
-    setDetentConfig(espp::detail::ON_OFF_STRONG_DETENTS);
+    setDetentConfig(espp::detail::COARSE_VALUES_STRONG_DETENTS, 50);
     m_haptics->start();
 }
 
