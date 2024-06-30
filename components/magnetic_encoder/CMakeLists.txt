@@ -1,10 +1,9 @@
 set(COMPONENT_ADD_INCLUDEDIRS "include")
-set(COMPONENT_SRCS src/RightLights.cpp
-        src/Effects.cpp)
+set(COMPONENT_SRCS src/MagneticEncoder.cpp)
 
 idf_component_register(
         SRCS ${COMPONENT_SRCS}
         INCLUDE_DIRS ${COMPONENT_ADD_INCLUDEDIRS}
-        REQUIRES led_strip manager ring_lights
+        REQUIRES manager driver filters mt6701
         PRIV_REQUIRES util
 )

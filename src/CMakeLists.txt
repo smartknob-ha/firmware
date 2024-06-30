@@ -4,4 +4,4 @@
 FILE(GLOB_RECURSE app_sources main.cpp)
 
 idf_component_register(SRCS "main.cpp" INCLUDE_DIRS "."
-    REQUIRES manager ring_lights light_sensor strain_sensor)
+    PRIV_REQUIRES manager magnetic_encoder ring_lights light_sensor display_driver strain_sensor)

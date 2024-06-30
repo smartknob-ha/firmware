@@ -1,106 +1,116 @@
+#include <inttypes.h>
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
+#include "DisplayDriver.hpp"
+#include "LightSensor.hpp"
+#include "MagneticEncoder.hpp"
+#include "Manager.hpp"
+#include "RightLights.hpp"
+#include "StrainSensor.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
-#include <inttypes.h>
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-#include "mock_component.hpp"
-#include "manager.hpp"
+[[noreturn]] void startSmartknob(void) {
+    ringLights::RingLights ringLights;
+    LightSensor            lightSensor;
+    MagneticEncoder        magneticEncoder;
+    StrainSensor           strainSensor;
 
-#include "ring_lights.hpp"
-#include "light_sensor.hpp"
-#include "strain_sensor.hpp"
+    DisplayDriver::Config displayConfig{
+            .display_dc        = GPIO_NUM_16,
+            .display_reset     = GPIO_NUM_4,
+            .display_backlight = GPIO_NUM_7,
+            .spi_sclk          = GPIO_NUM_5,
+            .spi_mosi          = GPIO_NUM_6,
+            .spi_cs            = GPIO_NUM_15,
+            .rotation          = DisplayRotation::LANDSCAPE};
+    DisplayDriver displayDriver(displayConfig);
 
-[[noreturn]] void start_smartknob(void) {
+    sdk::Manager::addComponent(ringLights);
+    sdk::Manager::addComponent(lightSensor);
+    sdk::Manager::addComponent(magneticEncoder);
+    sdk::Manager::addComponent(strainSensor);
+    sdk::Manager::addComponent(displayDriver);
 
-//	ring_lights::ring_lights ring_lights_;
-//    light_sensor::light_sensor light_sensor_;
-    strain_sensor::strain_sensor strain_sensor_;
-//    sdk::manager::instance().add_component(ring_lights_);
-//    sdk::manager::instance().add_component(light_sensor_);
-    sdk::manager::instance().add_component(strain_sensor_);
+    sdk::Manager::start();
 
-	sdk::manager::instance().start();
+    // Wait for components to actually be running
+    while (!sdk::Manager::isInitialized()) {
+        vTaskDelay(1);
+    };
 
-	// This is here for show, remove it if you want
-	ring_lights::effect_msg msg;
-	msg.primary_color = {.hue = HUE_PINK, .saturation = 255, .value = 200};
-	msg.secondary_color = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
-	msg.effect = ring_lights::RAINBOW_RADIAL;
-	msg.param_a = 10;
-//	ring_lights_.enqueue(msg);
+    auto res = magneticEncoder.getDevice();
+    if (res.has_value()) {
+        //		MotorDriver motorDriver(res.value());
 
-    auto res = strain_sensor_.initialize();
-    if (res.isErr()) {
-        ESP_LOGE("main", "initialize error: %s", res.unwrapErr().c_str());
+        //		sdk::Manager::addComponent(motorDriver);
+    } else {
+        ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
     }
 
-	bool flip_flop = true;
-    int count = 0;
-	for(;;) {
-        if (res.isErr()) {
-            ESP_LOGE("main", "initialize error: %s", res.unwrapErr().c_str());
-        } else {
-            if (count++ > 10) {
-                if (auto strain = strain_sensor_.read_strain_level(); strain.isOk()) {
-                    ESP_LOGI("main", "strain value: %ld", strain.unwrap());
-                } else {
-                    ESP_LOGE("main", "error: %s", strain.unwrapErr().c_str());
-                }
-                count = 0;
+    //    displayDriver.setBrightness(255);
+    //
+    // This is here for show, remove it if you want
+    ringLights::effectMsg msg;
+    msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
+    msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
+    msg.effect         = ringLights::POINTER;
+    msg.paramA         = 1.0f;
+    msg.paramB         = 40;
+    ringLights.enqueue(msg);
+    //
+    size_t count = 0;
+    for (;;) {
+        auto degrees = magneticEncoder.getDegrees();
+        auto dev     = magneticEncoder.getDevice();
+
+        if (count++ > 100) {
+            if (auto light = lightSensor.readLightLevel(); light.has_value()) {
+                ESP_LOGI("main", "light value: %ld", light.value());
             }
+
+            ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
+            ESP_LOGI("main", "strain readout: %ld", strainSensor.readStrainLevel().value());
+            count = 0;
         }
 
-		if (flip_flop) {
-			msg.param_a += 10;
-		} else {
-			msg.param_a -= 10;
-		}
+        msg.paramA = degrees.value();
 
-		if (msg.param_a == 0) {
-			flip_flop = true;
-		} else if (msg.param_a == 360) {
-			flip_flop = false;
-		}
-
-//		ring_lights_.enqueue(msg);
-		vTaskDelay(pdMS_TO_TICKS(100));
-	}
+        ringLights.enqueue(msg);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
 
-extern "C" {
+extern "C" void app_main(void) {
+    ESP_LOGI("main", "\nSleeping for 5 seconds before boot...\n");
+    sleep(5);
 
-void app_main(void) {
-	ESP_LOGI("main", "\nSleeping for 5 seconds before boot...\n");
-	sleep(5);
+    /* Print chip information */
+    esp_chip_info_t chipInfo;
+    uint32_t        flashSize;
+    esp_chip_info(&chipInfo);
+    printf("This is %s chip with %d CPU core(s), WiFi%s%s%s, ",
+           CONFIG_IDF_TARGET,
+           chipInfo.cores,
+           (chipInfo.features & CHIP_FEATURE_BT) ? "/BT" : "",
+           (chipInfo.features & CHIP_FEATURE_BLE) ? "/BLE" : "",
+           (chipInfo.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
 
-	 /* Print chip information */
-	esp_chip_info_t chip_info;
-	uint32_t flash_size;
-	esp_chip_info(&chip_info);
-	printf("This is %s chip with %d CPU core(s), WiFi%s%s%s, ",
-		   CONFIG_IDF_TARGET,
-		   chip_info.cores,
-		   (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-		   (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "",
-		   (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
+    unsigned majorRev = chipInfo.revision / 100;
+    unsigned minorRev = chipInfo.revision % 100;
+    printf("silicon revision v%d.%d, ", majorRev, minorRev);
+    if (esp_flash_get_size(NULL, &flashSize) != ESP_OK) {
+        printf("Get flash size failed");
+        return;
+    }
 
-	unsigned major_rev = chip_info.revision / 100;
-	unsigned minor_rev = chip_info.revision % 100;
-	printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-	if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-		printf("Get flash size failed");
-		return;
-	}
+    printf("%" PRIu32 "MB %s flash\n", flashSize / (uint32_t) (1024 * 1024),
+           (chipInfo.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-	printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
-		   (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
 
-	printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
-
-	start_smartknob();
-}
-
+    startSmartknob();
 }
