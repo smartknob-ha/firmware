@@ -27,9 +27,13 @@ public:
     Status run() override;
     Status stop() override;
 
-    void setDetentConfig(espp::detail::DetentConfig config);
-
-
+    /**
+     * @brief Sets detent config
+     * @param config Type of haptic feedback
+     * @param position Position within the DetentConfig, gets
+     *                 clamped to `config.min_position` and `config.max_position`
+     */
+    void setDetentConfig(espp::detail::DetentConfig config, int position);
 
 private:
     static const inline char TAG[] = "Magnetic encoder";

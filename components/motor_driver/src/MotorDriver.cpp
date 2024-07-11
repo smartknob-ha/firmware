@@ -30,6 +30,11 @@ Status MotorDriver::stop() {
 	return m_status;
 }
 
+void MotorDriver::setDetentConfig(espp::detail::DetentConfig config, int position) {
+    m_haptics->set_position(position);
+    m_haptics->update_detent_config(config);
+}
+
 void MotorDriver::setSensor(const std::shared_ptr<encoder> magnetic_encoder) {
     m_encoder = magnetic_encoder;
     m_driver  = std::make_shared<espp::BldcDriver>(m_driverConfig);
@@ -40,11 +45,6 @@ void MotorDriver::setSensor(const std::shared_ptr<encoder> magnetic_encoder) {
 
     m_hapticsConfig.motor = *m_motor.get();
     m_haptics = std::make_unique<BldcHaptics>(m_hapticsConfig);
-}
-
-void MotorDriver::setDetentConfig(espp::detail::DetentConfig config, int position) {
-    m_haptics->set_position(position);
-    m_haptics->update_detent_config(config);
 }
 
 void MotorDriver::setZero() {
