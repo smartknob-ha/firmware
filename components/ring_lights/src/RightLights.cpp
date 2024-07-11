@@ -47,6 +47,7 @@ namespace ringLights {
         m_status = Status::RUNNING;
 
         while (m_run) {
+            TickType_t start = xTaskGetTickCount();
             m_currentEffectFunc_p(m_currentEffectBuffer, m_currentEffect);
             if (m_effectTransitionTicksLeft > 0) {
                 ESP_LOGV(TAG, "m_effect_transition_ticks_left: %lu", m_effectTransitionTicksLeft);
@@ -63,7 +64,7 @@ namespace ringLights {
                 m_status = Status::STOPPING;
                 m_err = err;
             }
-            vTaskDelay(pdMS_TO_TICKS(FLUSH_TASK_DELAY_MS));
+            xTaskDelayUntil(&start, pdMS_TO_TICKS(FLUSH_TASK_DELAY_MS));
         }
     }
 

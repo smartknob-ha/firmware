@@ -5,78 +5,90 @@
 #include "LightSensor.hpp"
 #include "MagneticEncoder.hpp"
 #include "Manager.hpp"
+#include "MotorDriver.hpp"
 #include "RightLights.hpp"
-#include "StrainSensor.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "lv_api_map.h"
 
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
     MagneticEncoder        magneticEncoder;
-    StrainSensor           strainSensor;
+    MotorDriver            motorDriver;
 
-    DisplayDriver::Config displayConfig{
-            .display_dc        = GPIO_NUM_16,
-            .display_reset     = GPIO_NUM_4,
-            .display_backlight = GPIO_NUM_7,
-            .spi_sclk          = GPIO_NUM_5,
-            .spi_mosi          = GPIO_NUM_6,
-            .spi_cs            = GPIO_NUM_15,
-            .rotation          = DisplayRotation::LANDSCAPE};
-    DisplayDriver displayDriver(displayConfig);
+    	DisplayDriver::Config displayConfig{
+                .display_dc        = GPIO_NUM_16,
+                .display_reset     = GPIO_NUM_4,
+                .display_backlight = GPIO_NUM_7,
+                .spi_sclk          = GPIO_NUM_5,
+                .spi_mosi          = GPIO_NUM_6,
+                .spi_cs            = GPIO_NUM_15,
+                .rotation          = DisplayRotation::LANDSCAPE};
+        DisplayDriver displayDriver(displayConfig);
 
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
     sdk::Manager::addComponent(magneticEncoder);
-    sdk::Manager::addComponent(strainSensor);
     sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
 
     // Wait for components to actually be running
-    while (!sdk::Manager::isInitialized()) {
-        vTaskDelay(1);
-    };
+    while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
     auto res = magneticEncoder.getDevice();
     if (res.has_value()) {
-        //		MotorDriver motorDriver(res.value());
-
-        //		sdk::Manager::addComponent(motorDriver);
+        motorDriver.setSensor(res.value());
     } else {
         ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
     }
 
-    //    displayDriver.setBrightness(255);
-    //
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
-    msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
+    msg.primaryColor   = {.hue = HUE_AQUA, .saturation = 255, .value = 150};
     msg.secondaryColor = {.hue = HUE_YELLOW, .saturation = 255, .value = 200};
-    msg.effect         = ringLights::POINTER;
-    msg.paramA         = 1.0f;
+    msg.effect         = ringLights::RAINBOW_RADIAL;
+    msg.paramA         = 5.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
-    //
+
+    esp_log_level_set(motorDriver.getTag().c_str(), ESP_LOG_DEBUG);
+
+    sdk::Manager::addComponent(motorDriver);
+
+    while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
+
+    motorDriver.setZero();
+
+    displayDriver.setBrightness(255);
+
+    msg.primaryColor = {.hue = HUE_BLUE, .saturation = 255, .value = 200};
+    msg.effect = ringLights::POINTER;
+
     size_t count = 0;
     for (;;) {
         auto degrees = magneticEncoder.getDegrees();
+        auto radians = magneticEncoder.getRadians();
         auto dev     = magneticEncoder.getDevice();
 
-        if (count++ > 100) {
+        if (++count > 100) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
 
             ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
-            ESP_LOGI("main", "strain readout: %lu", strainSensor.readStrainLevel().value());
+            ESP_LOGI("main", "raw encoder degrees: %lf", magneticEncoder.getDevice()->get()->get_degrees());
+
+            ESP_LOGI("main", "encoder radians: %lf", radians.value());
+            ESP_LOGI("main", "raw encoder radians: %lf", magneticEncoder.getDevice()->get()->get_radians());
             count = 0;
         }
 
+        lv_task_handler();
         msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
