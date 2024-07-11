@@ -5,13 +5,14 @@
 #include "LightSensor.hpp"
 #include "MagneticEncoder.hpp"
 #include "Manager.hpp"
-#include "RightLights.hpp"
 #include "MotorDriver.hpp"
+#include "RightLights.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "lv_api_map.h"
 
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
@@ -19,20 +20,20 @@
     MagneticEncoder        magneticEncoder;
     MotorDriver            motorDriver;
 
-    //	DisplayDriver::Config displayConfig{
-    //            .display_dc        = GPIO_NUM_16,
-    //            .display_reset     = GPIO_NUM_4,
-    //            .display_backlight = GPIO_NUM_7,
-    //            .spi_sclk          = GPIO_NUM_5,
-    //            .spi_mosi          = GPIO_NUM_6,
-    //            .spi_cs            = GPIO_NUM_15,
-    //            .rotation          = DisplayRotation::LANDSCAPE};
-    //    DisplayDriver displayDriver(displayConfig);
+    	DisplayDriver::Config displayConfig{
+                .display_dc        = GPIO_NUM_16,
+                .display_reset     = GPIO_NUM_4,
+                .display_backlight = GPIO_NUM_7,
+                .spi_sclk          = GPIO_NUM_5,
+                .spi_mosi          = GPIO_NUM_6,
+                .spi_cs            = GPIO_NUM_15,
+                .rotation          = DisplayRotation::LANDSCAPE};
+        DisplayDriver displayDriver(displayConfig);
 
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
     sdk::Manager::addComponent(magneticEncoder);
-    //    sdk::Manager::addComponent(displayDriver);
+    sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
 
@@ -63,7 +64,7 @@
 
     motorDriver.setZero();
 
-    //    displayDriver.setBrightness(255);
+    displayDriver.setBrightness(255);
 
     msg.primaryColor = {.hue = HUE_BLUE, .saturation = 255, .value = 200};
     msg.effect = ringLights::POINTER;
@@ -87,7 +88,7 @@
             count = 0;
         }
 
-
+        lv_task_handler();
         msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
