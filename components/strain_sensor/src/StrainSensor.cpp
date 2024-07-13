@@ -39,26 +39,35 @@ Status StrainSensor::initialize() {
 }
 
 Status StrainSensor::stop() {
-    esp_err_t err = hx711_power_down(&m_hx711_dev, true);
-    if (err) {
+    if (auto err = hx711_power_down(&m_hx711_dev, true)) {
         ESP_LOGE(TAG, "Failed to power down device: %s", esp_err_to_name(err));
     }
+
     return m_status = Status::STOPPED;
 }
 
-std::expected<StrainSensor::pressState, std::error_code> StrainSensor::getPressState() {
+std::expected<StrainSensor::StrainState, std::error_code> StrainSensor::getPressState() {
     auto strainLevel = readStrainLevel();
-    if (strainLevel.has_value()) {
-        if (strainLevel.value() > m_config.hardPressValue.value()) {
-            return pressState::HARD_PRESS;
-        } else if (strainLevel.value() > m_config.lightPressValue.value()) {
-            return pressState::LIGHT_PRESS;
-        } else {
-            return pressState::RESTING;
-        }
+    if (!strainLevel.has_value()) {
+        return std::unexpected(strainLevel.error());
     }
 
-    return std::unexpected(strainLevel.error());
+    if (strainLevel.value() < m_config.hardPressValue.value()) {
+        return StrainState {
+            .level = StrainLevel::HARD_PRESS,
+            .percentage = static_cast<uint8_t>((strainLevel.value() - m_config.hardPressValue.value()) / m_config.hardPressValue.value() * 100)
+        };
+    } else if (strainLevel.value() < m_config.lightPressValue.value()) {
+        return StrainState {
+            .level = StrainLevel::LIGHT_PRESS,
+            .percentage = static_cast<uint8_t>((strainLevel.value() - m_config.lightPressValue.value()) / m_config.lightPressValue.value() * 100)
+        };
+    } else {
+        return StrainState {
+            .level = StrainLevel::RESTING,
+            .percentage = static_cast<uint8_t>((strainLevel.value() - m_config.restingValue.value()) / m_config.restingValue.value() * 100)
+        };
+    }
 }
 
 std::expected<unsigned long, std::error_code> StrainSensor::readStrainLevel() {
@@ -104,6 +113,7 @@ std::error_code StrainSensor::saveConfig() {
         ESP_LOGW(TAG, "Unable to save config: %s", esp_err_to_name(err.value()));
         return err;
     }
+
     return std::make_error_code(ESP_OK);
 }
 
@@ -112,24 +122,24 @@ std::error_code StrainSensor::calibrateRestingValue(bool save) {
     ESP_LOGI(TAG, "Current resting value: %lu", m_config.restingValue.value());
 
     auto data = readAverageStrainLevel(1000);
-    if (data.has_value()) {
-        // Voltage goes down when the sensors are stretched
-        if (data.value() < m_config.lightPressValue.value()) {
-            ESP_LOGE(TAG, "Value lower than light press value, make sure to not press down while calibrating");
-            return std::make_error_code(ESP_ERR_INVALID_ARG);
-        }
-
-        m_config.updateField(m_config.restingValue, data.value());
-        ESP_LOGI(TAG, "Measured resting value: %lu", m_config.restingValue.value());
-
-        if (save) {
-            return saveConfig();
-        }
-
-        return std::make_error_code(ESP_OK);
+    if (!data.has_value()) {
+        return data.error();
     }
 
-    return data.error();
+    // Voltage goes down when the sensors are stretched
+    if (data.value() - 1000 < m_config.lightPressValue.value()) {
+        ESP_LOGE(TAG, "Value lower than light press value, make sure to not press down while calibrating");
+        return std::make_error_code(ESP_ERR_INVALID_ARG);
+    }
+
+    m_config.updateField(m_config.restingValue, data.value());
+    ESP_LOGI(TAG, "Measured resting value: %lu", m_config.restingValue.value());
+
+    if (save) {
+        return saveConfig();
+    }
+
+    return std::make_error_code(ESP_OK);
 }
 
 std::error_code StrainSensor::calibrateLightPressValue(bool save) {
@@ -137,27 +147,27 @@ std::error_code StrainSensor::calibrateLightPressValue(bool save) {
     ESP_LOGI(TAG, "Current light pressure value: %lu", m_config.lightPressValue.value());
 
     auto data = readAverageStrainLevel(1000);
-    if (data.has_value()) {
-        // Voltage goes down when the sensors are stretched
-        if (data.value() < m_config.hardPressValue.value()) {
-            ESP_LOGE(TAG, "Value lower than hard press value, should be higher");
-            return std::make_error_code(ESP_ERR_INVALID_ARG);
-        } else if (data.value() > m_config.restingValue.value()) {
-            ESP_LOGE(TAG, "Value higher than resting value, should be lower");
-            return std::make_error_code(ESP_ERR_INVALID_ARG);
-        }
-
-        m_config.updateField(m_config.lightPressValue, data.value());
-        ESP_LOGI(TAG, "Measured light press value: %lu", m_config.lightPressValue.value());
-
-        if (save) {
-            return saveConfig();
-        }
-
-        return std::make_error_code(ESP_OK);
+    if (!data.has_value()) {
+        return data.error();
     }
 
-    return data.error();
+    // Voltage goes down when the sensors are stretched
+    if (data.value() - 1000 < m_config.hardPressValue.value()) {
+        ESP_LOGE(TAG, "Value lower than hard press value, or too close, should be higher");
+        return std::make_error_code(ESP_ERR_INVALID_ARG);
+    } else if (data.value() + 1000 > m_config.restingValue.value()) {
+        ESP_LOGE(TAG, "Value higher than resting value, or too close, should be lower");
+        return std::make_error_code(ESP_ERR_INVALID_ARG);
+    }
+
+    m_config.updateField(m_config.lightPressValue, data.value());
+    ESP_LOGI(TAG, "Measured light press value: %lu", m_config.lightPressValue.value());
+
+    if (save) {
+        return saveConfig();
+    }
+
+    return std::make_error_code(ESP_OK);
 }
 
 std::error_code StrainSensor::calibrateHardPressValue(bool save) {
@@ -165,22 +175,22 @@ std::error_code StrainSensor::calibrateHardPressValue(bool save) {
     ESP_LOGI(TAG, "Current hard press value: %lu", m_config.hardPressValue.value());
 
     auto data = readAverageStrainLevel(1000);
-    if (data.has_value()) {
-        // Voltage goes down when the sensors are stretched
-        if (data.value() > m_config.lightPressValue.value()) {
-            ESP_LOGE(TAG, "Value higher than light press value, should be lower");
-            return std::make_error_code(ESP_ERR_INVALID_ARG);
-        }
-
-        m_config.updateField(m_config.hardPressValue, data.value());
-        ESP_LOGI(TAG, "Measured hard press value: %lu", m_config.hardPressValue.value());
-
-        if (save) {
-            return saveConfig();
-        }
-
-        return std::make_error_code(ESP_OK);
+    if (!data.has_value()) {
+        return data.error();
     }
 
-    return data.error();
+    // Voltage goes down when the sensors are stretched
+    if (data.value() > m_config.lightPressValue.value()) {
+        ESP_LOGE(TAG, "Value higher than light press value, should be lower");
+        return std::make_error_code(ESP_ERR_INVALID_ARG);
+    }
+
+    m_config.updateField(m_config.hardPressValue, data.value());
+    ESP_LOGI(TAG, "Measured hard press value: %lu", m_config.hardPressValue.value());
+
+    if (save) {
+        return saveConfig();
+    }
+
+    return std::make_error_code(ESP_OK);
 }

@@ -7,6 +7,7 @@
 #include "Manager.hpp"
 #include "MotorDriver.hpp"
 #include "RightLights.hpp"
+#include "StrainSensor.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
@@ -17,6 +18,7 @@
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
+    StrainSensor           strainSensor;
     MagneticEncoder        magneticEncoder;
     MotorDriver            motorDriver;
 
@@ -31,6 +33,7 @@
         DisplayDriver displayDriver(displayConfig);
 
     sdk::Manager::addComponent(ringLights);
+    sdk::Manager::addComponent(strainSensor);
     sdk::Manager::addComponent(lightSensor);
     sdk::Manager::addComponent(magneticEncoder);
     sdk::Manager::addComponent(displayDriver);
@@ -69,6 +72,38 @@
     msg.primaryColor = {.hue = HUE_BLUE, .saturation = 255, .value = 200};
     msg.effect = ringLights::POINTER;
 
+
+    lv_obj_t * label1 = lv_label_create(lv_scr_act());
+    lv_label_set_long_mode(label1, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
+    lv_label_set_recolor(label1, true);                      /*Enable re-coloring by commands in the text*/
+
+    lv_obj_set_width(label1, 150);  /*Set smaller width to make the lines wrap*/
+    lv_obj_set_style_text_align(label1, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(label1, LV_ALIGN_CENTER, 0, -40);
+
+    lv_label_set_text(label1, "#000000 calibrating resting value");
+    lv_task_handler();
+    strainSensor.calibrateRestingValue();
+    lv_label_set_text(label1, "#000000 Done calibrating!");
+    lv_task_handler();
+
+    vTaskDelay(pdMS_TO_TICKS(300));
+    lv_label_set_text(label1, "#000000 Now press lightly");
+    lv_task_handler();
+    strainSensor.calibrateLightPressValue();
+    lv_label_set_text(label1, "#000000 Done calibrating!");
+    lv_task_handler();
+
+    vTaskDelay(pdMS_TO_TICKS(300));
+    lv_label_set_text(label1, "#000000 Now press Firmly");
+    lv_task_handler();
+    strainSensor.calibrateHardPressValue();
+    lv_label_set_text(label1, "#000000 Done calibrating!");
+    lv_task_handler();
+
+    strainSensor.saveConfig();
+    
+
     size_t count = 0;
     for (;;) {
         auto degrees = magneticEncoder.getDegrees();
@@ -85,6 +120,14 @@
 
             ESP_LOGI("main", "encoder radians: %lf", radians.value());
             ESP_LOGI("main", "raw encoder radians: %lf", magneticEncoder.getDevice()->get()->get_radians());
+
+            auto strainLevel = strainSensor.getPressState().value();
+            auto StateString = StrainSensor::LevelToString[(int)strainLevel.level].c_str();
+            ESP_LOGI("main", "strain state: %s", StateString);
+            ESP_LOGI("main", "strain percentage: %d", strainLevel.percentage);
+            ESP_LOGI("main", "raw strain level: %lu", strainSensor.readStrainLevel().value());
+
+            lv_label_set_text(label1, StateString);
             count = 0;
         }
 

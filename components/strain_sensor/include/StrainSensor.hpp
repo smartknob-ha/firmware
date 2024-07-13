@@ -36,10 +36,22 @@ public:
         }
     };
 
-    enum class pressState {
+    enum class StrainLevel {
         RESTING,
         LIGHT_PRESS,
-        HARD_PRESS
+        HARD_PRESS,
+        MAX
+    };
+
+    struct StrainState {
+        StrainLevel level;
+        uint8_t percentage;
+    };
+
+    static inline const etl::array<etl::string<50>, (uint8_t)StrainLevel::MAX> LevelToString {
+            "resting",
+            "light press",
+            "hard press"
     };
 
     /* Component override functions */
@@ -53,7 +65,7 @@ public:
      * @brief Checks current strain level against those saved in configuration
      * @return pressState, esp_err_t on error
      */
-    std::expected<pressState, std::error_code> getPressState();
+    std::expected<StrainState, std::error_code> getPressState();
 
     /**
      * @brief Blocking function that waits for the sensor to become ready and read
