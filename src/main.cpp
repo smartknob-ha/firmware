@@ -1,7 +1,10 @@
 #include <inttypes.h>
+#include <lvgl.h>
 #include <stdio.h>
 
+#include "DisplayDriver.hpp"
 #include "LightSensor.hpp"
+#include "MagneticEncoder.hpp"
 #include "Manager.hpp"
 #include "RightLights.hpp"
 #include "esp_chip_info.h"
@@ -9,13 +12,23 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "MagneticEncoder.hpp"
-#include "DisplayDriver.hpp"
+
+//TODO To be placed in UI component once created
+std::mutex mutex;
+void lvgl_task(void*) {
+    while (1) {
+        mutex.lock();
+        uint32_t time_till_next = lv_timer_handler();
+        mutex.unlock();
+        // Sleep for a maximum time of CONFIG_LV_DEF_REFR_PERIOD
+        vTaskDelay(std::min(time_till_next, static_cast<uint32_t>(CONFIG_LV_DEF_REFR_PERIOD)) / portTICK_PERIOD_MS);
+    }
+}
 
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
-	MagneticEncoder        magneticEncoder;
+    MagneticEncoder        magneticEncoder;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -29,25 +42,30 @@
 
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
-	sdk::Manager::addComponent(magneticEncoder);
+    sdk::Manager::addComponent(magneticEncoder);
     sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
 
-	// Wait for components to actually be running
-	while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
+    // Wait for components to actually be running
+    while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
-	auto res = magneticEncoder.getDevice();
-	if (res.has_value()) {
-//		MotorDriver motorDriver(res.value());
+    auto res = magneticEncoder.getDevice();
+    if (res.has_value()) {
+        //		MotorDriver motorDriver(res.value());
 
-//		sdk::Manager::addComponent(motorDriver);
-	} else {
-		ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
-	}
+        //		sdk::Manager::addComponent(motorDriver);
+    } else {
+        ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
+    }
 
-//    displayDriver.setBrightness(255);
-//
+    lv_obj_t* dot = lv_led_create(lv_scr_act());
+    lv_obj_align(dot, LV_ALIGN_CENTER, 0, 0);
+    lv_led_off(dot);
+
+    displayDriver.setBrightness(255);
+
+    //
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
@@ -56,11 +74,14 @@
     msg.paramA         = 1.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
-//
-    size_t  count    = 0;
+    //
+
+    xTaskCreatePinnedToCore(lvgl_task, "LVGL", 4096, NULL, 24, NULL, 0);
+
+    size_t count = 0;
     for (;;) {
-	    auto degrees = magneticEncoder.getDegrees();
-		auto dev = magneticEncoder.getDevice();
+        vTaskDelay(pdMS_TO_TICKS(10));
+        auto degrees = magneticEncoder.getDegrees();
 
         if (count++ > 100) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
@@ -71,10 +92,14 @@
             count = 0;
         }
 
-		msg.paramA = degrees.value();
+        msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
-        vTaskDelay(pdMS_TO_TICKS(10));
+
+        auto x = static_cast<int>(100 * std::cos((magneticEncoder.getRadians().value() * -1) - M_PI_2));
+        auto y = static_cast<int>(100 * std::sin((magneticEncoder.getRadians().value() * -1) - M_PI_2));
+        std::scoped_lock lock{mutex};
+        lv_obj_align(dot, LV_ALIGN_CENTER, x, y);
     }
 }
 
