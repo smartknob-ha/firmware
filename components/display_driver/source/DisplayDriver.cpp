@@ -18,6 +18,9 @@
         }                                                              \
     } while (0)
 
+using Pixel = lv_color16_t;
+using Display = espp::Display<Pixel>;
+
 static spi_device_handle_t spi;
 static size_t              num_queued_trans = 0;
 static gpio_num_t          display_dc;
@@ -32,13 +35,13 @@ static constexpr bool              RESET_VALUE        = false;
 static constexpr size_t            PIXEL_BUFFER_SIZE  = CONFIG_DISPLAY_WIDTH * 50;
 
 #ifdef CONFIG_DISPLAY_FRAMEBUFFER_IN_PSRAM
-static lv_color_t EXT_RAM_BSS_ATTR frameBuffer_0[PIXEL_BUFFER_SIZE];
-static lv_color_t EXT_RAM_BSS_ATTR frameBuffer_1[PIXEL_BUFFER_SIZE];
+static Pixel EXT_RAM_BSS_ATTR frameBuffer_0[PIXEL_BUFFER_SIZE];
+static Pixel EXT_RAM_BSS_ATTR frameBuffer_1[PIXEL_BUFFER_SIZE];
 #else
-static lv_color_t frameBuffer_0[PIXEL_BUFFER_SIZE];
-static lv_color_t frameBuffer_1[PIXEL_BUFFER_SIZE];
+static Pixel frameBuffer_0[PIXEL_BUFFER_SIZE];
+static Pixel frameBuffer_1[PIXEL_BUFFER_SIZE];
 #endif
-static std::unique_ptr<espp::Display> p_display;
+static std::unique_ptr<Display> p_display;
 
 // This function is called (in irq context!) just before a transmission starts.
 // It will set the D/C line to the value indicated in the user field
@@ -56,8 +59,8 @@ static void IRAM_ATTR displaySpiPostTransfer(spi_transaction_t* t) {
     uint16_t user_flags   = (uint32_t) (t->user);
     bool     should_flush = user_flags & FLUSH_BIT;
     if (should_flush) {
-        lv_disp_t* disp = _lv_refr_get_disp_refreshing();
-        lv_disp_flush_ready(disp->driver);
+        lv_display_t *disp = _lv_refr_get_disp_refreshing();
+        lv_display_flush_ready(disp);
     }
 }
 
@@ -206,19 +209,20 @@ Status DisplayDriver::initialize() {
             .mirror_y         = false,
     });
 
-    auto displayConfig = espp::Display::NonAllocatingConfig{
+    auto displayConfig = Display::NonAllocatingConfig{
             .vram0                     = frameBuffer_0,
             .vram1                     = frameBuffer_1,
             .width                     = CONFIG_DISPLAY_WIDTH,
             .height                    = CONFIG_DISPLAY_HEIGHT,
             .pixel_buffer_size         = PIXEL_BUFFER_SIZE,
             .flush_callback            = espp::Gc9a01::flush,
+            .rotation_callback         = espp::Gc9a01::rotate,
             .backlight_pin             = m_config.display_backlight,
             .backlight_on_value        = BACKLIGHT_ON_VALUE,
-            .rotation                  = static_cast<espp::Display::Rotation>(m_config.rotation),
+            .rotation                  = static_cast<espp::DisplayRotation>(m_config.rotation),
             .software_rotation_enabled = true};
 
-    p_display = std::make_unique<espp::Display>(displayConfig);
+    p_display = std::make_unique<Display>(displayConfig);
 
     m_initialized = true;
     ESP_LOGD(TAG, "Finished initializing display driver");
