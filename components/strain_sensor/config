@@ -1,5 +1,6 @@
 menu "Smartknob strain sensor"
-   config STRAIN_SENSOR_DOUT_GPIO_NUM
+
+    config STRAIN_SENSOR_DOUT_GPIO_NUM
         int "DOUT GPIO Num"
         default 41
         help
@@ -10,4 +11,11 @@ menu "Smartknob strain sensor"
         default 42
         help
             GPIO number for HX711 serial clock input line.
+
+    config STRAIN_SENSOR_NUM_CALIBRATION_MEASUREMENTS
+        int "Number of measurements to make for the resting calibration value"
+        default 100
+        help
+            More measurements make it more accurate, but the calibration will take longer.
+
 endmenu

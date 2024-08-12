@@ -1,13 +1,43 @@
-#include <cmath>
-
 #include "StrainSensor.hpp"
 
+#include <cmath>
+
 #include "esp_err.h"
-#include "esp_system_error.hpp"
 #include "esp_log.h"
+#include "esp_system_error.hpp"
 
 using Status = sdk::Component::Status;
 using res    = sdk::Component::res;
+
+uint32_t StrainSensor::Config::getStrainValue(StrainLevel level) {
+    switch (level) {
+        case StrainLevel::RESTING:
+            return restingValue.value();
+        case StrainLevel::LIGHT_PRESS:
+            return lightPressValue.value();
+        case StrainLevel::HARD_PRESS:
+            return hardPressValue.value();
+        case StrainLevel::MAX:
+        default:
+            return UINT32_MAX;
+    };
+}
+
+void StrainSensor::Config::updateField(StrainSensor::StrainLevel level, uint32_t value) {
+    switch (level) {
+        case StrainLevel::RESTING:
+            Base::updateField(restingValue, value);
+            break;
+        case StrainLevel::LIGHT_PRESS:
+            Base::updateField(lightPressValue, value);
+            break;
+        case StrainLevel::HARD_PRESS:
+            Base::updateField(hardPressValue, value);
+            break;
+        case StrainLevel::MAX:
+            break;
+    }
+}
 
 Status StrainSensor::getStatus() {
     return m_status;
@@ -17,17 +47,19 @@ Status StrainSensor::initialize() {
     esp_err_t err;
     m_status = Status::INITIALIZING;
     ESP_LOGI(TAG, "Setting up hx711 strain sensor component");
+    ESP_LOGI(TAG, "Current Settings: \n\tResting: %lu\n\tLight press: %lu\n\tHard press: %lu",
+             m_config.restingValue.value(), m_config.lightPressValue.value(), m_config.hardPressValue.value());
 
     gpio_config_t io_conf = {};
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL<< m_hx711_dev.pd_sck);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    io_conf.intr_type     = GPIO_INTR_DISABLE;
+    io_conf.mode          = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask  = (1ULL << m_hx711_dev.pd_sck);
+    io_conf.pull_down_en  = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en    = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
 
-    io_conf.pin_bit_mask = (1ULL<< m_hx711_dev.dout);
-    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = (1ULL << m_hx711_dev.dout);
+    io_conf.mode         = GPIO_MODE_INPUT;
     gpio_config(&io_conf);
 
     err = hx711_init(&m_hx711_dev);
@@ -52,25 +84,24 @@ std::expected<StrainSensor::StrainState, std::error_code> StrainSensor::getPress
         return std::unexpected(strainLevel.error());
     }
 
-    if (strainLevel.value() < m_config.hardPressValue.value()) {
-        return StrainState {
-            .level = StrainLevel::HARD_PRESS,
-            .percentage = static_cast<uint8_t>((strainLevel.value() - m_config.hardPressValue.value()) / m_config.hardPressValue.value() * 100)
-        };
-    } else if (strainLevel.value() < m_config.lightPressValue.value()) {
-        return StrainState {
-            .level = StrainLevel::LIGHT_PRESS,
-            .percentage = static_cast<uint8_t>((strainLevel.value() - m_config.lightPressValue.value()) / m_config.lightPressValue.value() * 100)
-        };
+    StrainState state;
+
+    if (strainLevel.value() - m_config.strainNoiseValue > m_config.hardPressValue.value()) {
+        state.level = StrainLevel::HARD_PRESS;
+    } else if (strainLevel.value() - m_config.strainNoiseValue > m_config.lightPressValue.value()) {
+        state.level = StrainLevel::LIGHT_PRESS;
     } else {
-        return StrainState {
-            .level = StrainLevel::RESTING,
-            .percentage = static_cast<uint8_t>((strainLevel.value() - m_config.restingValue.value()) / m_config.restingValue.value() * 100)
-        };
+        state.level = StrainLevel::RESTING;
     }
+
+    float configRestingValue = (float) m_config.restingValue.value();
+    float currentValue       = (float) strainLevel.value();
+
+    state.percentage = static_cast<uint8_t>((currentValue - configRestingValue) / configRestingValue * 100.f);
+    return state;
 }
 
-std::expected<unsigned long, std::error_code> StrainSensor::readStrainLevel() {
+std::expected<uint32_t, std::error_code> StrainSensor::readStrainLevel() {
     if (m_status != Status::RUNNING) {
         return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
     }
@@ -80,8 +111,8 @@ std::expected<unsigned long, std::error_code> StrainSensor::readStrainLevel() {
         return std::unexpected(std::make_error_code(err));
     }
 
-    int32_t data;
-    if (auto err = hx711_read_data(&m_hx711_dev, &data)) {
+    uint32_t data = 0;
+    if (auto err = hx711_read_data(&m_hx711_dev, reinterpret_cast<int32_t*>(&data))) {
         ESP_LOGE(TAG, "Failed to strain sensor value: %s", esp_err_to_name(err));
         return std::unexpected(std::make_error_code(err));
     }
@@ -89,18 +120,13 @@ std::expected<unsigned long, std::error_code> StrainSensor::readStrainLevel() {
     return data;
 }
 
-std::expected<unsigned long, std::error_code> StrainSensor::readAverageStrainLevel(size_t samples) {
-    int32_t data;
+std::expected<uint32_t, std::error_code> StrainSensor::readAverageStrainLevel(size_t samples) {
+    uint32_t data;
     if (m_status != Status::RUNNING) {
         return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
     }
 
-    if (auto err = hx711_wait(&m_hx711_dev, 150)) {
-        ESP_LOGE(TAG, "Failed to strain sensor value: %s", esp_err_to_name(err));
-        return std::unexpected(std::make_error_code(err));
-    }
-
-    if (auto err = hx711_read_average(&m_hx711_dev, samples, &data)) {
+    if (auto err = hx711_read_average(&m_hx711_dev, samples, reinterpret_cast<int32_t*>(&data))) {
         ESP_LOGE(TAG, "Failed to strain sensor value: %s", esp_err_to_name(err));
         return std::unexpected(std::make_error_code(err));
     }
@@ -110,30 +136,43 @@ std::expected<unsigned long, std::error_code> StrainSensor::readAverageStrainLev
 
 std::error_code StrainSensor::saveConfig() {
     if (auto err = m_config.save()) {
-        ESP_LOGW(TAG, "Unable to save config: %s", esp_err_to_name(err.value()));
+        ESP_LOGW(TAG, "Unable to save config: %s - %s", esp_err_to_name(err.value()), err.message().c_str());
         return err;
     }
 
     return std::make_error_code(ESP_OK);
 }
 
-std::error_code StrainSensor::calibrateRestingValue(bool save) {
-    ESP_LOGD(TAG, "calibrating resting value");
-    ESP_LOGI(TAG, "Current resting value: %lu", m_config.restingValue.value());
-
-    auto data = readAverageStrainLevel(1000);
-    if (!data.has_value()) {
-        return data.error();
+std::error_code StrainSensor::resetConfig() {
+    if (auto err = m_config.reset()) {
+        ESP_LOGE(TAG, "Unable to reset config: %s - %s", esp_err_to_name(err.value()), err.message().c_str());
+        return err;
     }
 
-    // Voltage goes down when the sensors are stretched
-    if (data.value() - 1000 < m_config.lightPressValue.value()) {
-        ESP_LOGE(TAG, "Value lower than light press value, make sure to not press down while calibrating");
-        return std::make_error_code(ESP_ERR_INVALID_ARG);
+    return std::make_error_code(ESP_OK);
+}
+
+std::error_code StrainSensor::calibrateNoiseValue(bool save) {
+    ESP_LOGD(TAG, "calibrating noise value");
+    ESP_LOGI(TAG, "Current noise value: %lu", m_restingStateNoise);
+
+    constexpr auto num_measurements = CONFIG_STRAIN_SENSOR_NUM_CALIBRATION_MEASUREMENTS;
+
+    etl::array<uint32_t, num_measurements> measurements{};
+    for (auto i = 0; i < num_measurements; i++) {
+        auto data = readStrainLevel();
+        if (!data.has_value()) {
+            return data.error();
+        }
+        measurements[i] = data.value();
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 
-    m_config.updateField(m_config.restingValue, data.value());
-    ESP_LOGI(TAG, "Measured resting value: %lu", m_config.restingValue.value());
+    auto min_max        = std::minmax_element(measurements.begin(), measurements.end());
+    m_restingStateNoise = (*min_max.second - *min_max.first) / 2;
+    m_config.updateField(m_config.strainNoiseValue, m_restingStateNoise);
+
+    ESP_LOGI(TAG, "Strain noise: %lu", m_restingStateNoise);
 
     if (save) {
         return saveConfig();
@@ -142,55 +181,60 @@ std::error_code StrainSensor::calibrateRestingValue(bool save) {
     return std::make_error_code(ESP_OK);
 }
 
-std::error_code StrainSensor::calibrateLightPressValue(bool save) {
-    ESP_LOGD(TAG, "Calibrating light press value");
-    ESP_LOGI(TAG, "Current light pressure value: %lu", m_config.lightPressValue.value());
-
-    auto data = readAverageStrainLevel(1000);
-    if (!data.has_value()) {
-        return data.error();
+std::expected<StrainSensor::CalibrationState, std::error_code> StrainSensor::getCalibrationState() {
+    if (m_calibrationError) {
+        return std::unexpected(m_calibrationError);
     }
-
-    // Voltage goes down when the sensors are stretched
-    if (data.value() - 1000 < m_config.hardPressValue.value()) {
-        ESP_LOGE(TAG, "Value lower than hard press value, or too close, should be higher");
-        return std::make_error_code(ESP_ERR_INVALID_ARG);
-    } else if (data.value() + 1000 > m_config.restingValue.value()) {
-        ESP_LOGE(TAG, "Value higher than resting value, or too close, should be lower");
-        return std::make_error_code(ESP_ERR_INVALID_ARG);
-    }
-
-    m_config.updateField(m_config.lightPressValue, data.value());
-    ESP_LOGI(TAG, "Measured light press value: %lu", m_config.lightPressValue.value());
-
-    if (save) {
-        return saveConfig();
-    }
-
-    return std::make_error_code(ESP_OK);
+    return m_calibrationStatus;
 }
 
-std::error_code StrainSensor::calibrateHardPressValue(bool save) {
-    ESP_LOGD(TAG, "Calibrating hard press value");
-    ESP_LOGI(TAG, "Current hard press value: %lu", m_config.hardPressValue.value());
+void StrainSensor::calibrateValue(StrainSensor::StrainLevel strainLevel, bool save) {
+    m_calibrationStatus = CalibrationState::WAITING_FOR_TRESHOLD_PASS;
+    m_calibrationError  = {};
 
-    auto data = readAverageStrainLevel(1000);
+    uint32_t threshold;
+    if (strainLevel > StrainLevel::RESTING) {
+        threshold = m_config.getStrainValue(static_cast<StrainLevel>(static_cast<int>(strainLevel) - 1));
+    } else {
+        threshold = UINT32_MAX;
+    }
+
+    // Wait for press to go below threshold
+    uint32_t level = UINT32_MAX;
+    while (level < threshold - m_restingStateNoise) {
+        auto data = readStrainLevel();
+        if (!data.has_value()) {
+            ESP_LOGE(TAG, "Failed waiting for input");
+            m_calibrationError  = data.error();
+            m_calibrationStatus = CalibrationState::ERROR;
+            return;
+        }
+        level = data.value();
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    m_calibrationStatus = CalibrationState::ACTIVE;
+
+    auto data = readAverageStrainLevel(CONFIG_STRAIN_SENSOR_NUM_CALIBRATION_MEASUREMENTS);
     if (!data.has_value()) {
-        return data.error();
+        m_calibrationError  = data.error();
+        m_calibrationStatus = CalibrationState::ERROR;
+        return;
     }
 
-    // Voltage goes down when the sensors are stretched
-    if (data.value() > m_config.lightPressValue.value()) {
-        ESP_LOGE(TAG, "Value higher than light press value, should be lower");
-        return std::make_error_code(ESP_ERR_INVALID_ARG);
-    }
+    ESP_LOGI(TAG, "Measured %s value: %lu", LevelToString[strainLevel].c_str(), data.value());
 
-    m_config.updateField(m_config.hardPressValue, data.value());
-    ESP_LOGI(TAG, "Measured hard press value: %lu", m_config.hardPressValue.value());
+    m_config.updateField(strainLevel, data.value());
 
     if (save) {
-        return saveConfig();
+        auto err = saveConfig();
+        if (err) {
+            m_calibrationError  = err;
+            m_calibrationStatus = CalibrationState::ERROR;
+        }
+        return;
     }
 
-    return std::make_error_code(ESP_OK);
+    m_calibrationError  = {};
+    m_calibrationStatus = CalibrationState::FINISHED;
 }
