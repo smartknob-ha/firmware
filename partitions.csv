@@ -1,5 +1,11 @@
-# ESP-IDF Partition Table
-# Name,   Type, SubType, Offset,  Size, Flags
-nvs,      data, nvs,     0x9000,  0x6000,
-phy_init, data, phy,     0xf000,  0x1000,
-factory,  app,  factory, 0x10000, 15M,
+# Name,             Type,   SubType,  Offset,   Size, Flags
+# bootloader.bin,   app,    boot,     ,         32K,
+# partition table,  app,    table,    ,         4K,
+PHY Init Data,	    data,	phy,	  ,	        1K,
+NVS Keys,	        data,   nvs_keys, ,         1K,
+NVS Data,	        data,	nvs,	  ,	        532K,
+OTA-A,	            app,	ota_0,	  ,	        3M,
+OTA-A Assets,	    data,	littlefs, ,	        3M,
+OTA-B,	            app,	ota_1,	  ,	        3M,
+OTA-B Assets,	    data,	littlefs, ,	        3M,
+Static Assets,	    data,	littlefs, ,	        3512K,
