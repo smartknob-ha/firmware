@@ -14,7 +14,7 @@ menu "Smartknob strain sensor"
 
     config STRAIN_SENSOR_NUM_CALIBRATION_MEASUREMENTS
         int "Number of measurements to make for the resting calibration value"
-        default 100
+        default 1000
         help
             More measurements make it more accurate, but the calibration will take longer.
 

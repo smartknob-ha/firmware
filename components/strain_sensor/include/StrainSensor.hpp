@@ -19,19 +19,19 @@ public:
         MAX
     };
 
-    class Config final : public sdk::ConfigObject<4, 512, "Strain sensor"> {
-        using Base = sdk::ConfigObject<4, 512, "Strain sensor">;
+    class Config final : public sdk::ConfigObject<4, 256, "Strain sensor"> {
+        using Base = sdk::ConfigObject<4, 256, "Strain sensor">;
 
     public:
-        sdk::ConfigField<uint32_t> restingValue{UINT32_MAX, "restingValue"};
-        sdk::ConfigField<uint32_t> lightPressValue{UINT32_MAX, "lightPressValue"};
-        sdk::ConfigField<uint32_t> hardPressValue{UINT32_MAX, "hardPressValue"};
-        sdk::ConfigField<uint32_t> strainNoiseValue{UINT32_MAX, "strainNoiseValue"};
+        sdk::ConfigField<int32_t> restingValue{INT32_MAX, "restingValue"};
+        sdk::ConfigField<int32_t> lightPressValue{INT32_MAX, "lightPressValue"};
+        sdk::ConfigField<int32_t> hardPressValue{INT32_MAX, "hardPressValue"};
+        sdk::ConfigField<int32_t> strainNoiseValue{INT32_MAX, "strainNoiseValue"};
 
         void allocateFields() {
             restingValue     = allocate(restingValue);
-            lightPressValue  = allocate(lightPressValue);
-            hardPressValue   = allocate(hardPressValue);
+            lightPressValue = allocate(lightPressValue);
+            hardPressValue  = allocate(hardPressValue);
             strainNoiseValue = allocate(strainNoiseValue);
         }
 
@@ -43,17 +43,25 @@ public:
             allocateFields();
         }
 
-        uint32_t getStrainValue(StrainLevel level);
+        int32_t getStrainValue(StrainLevel level) const;
 
         /**
          * @brief Access config value
          * @param level
          * @param value
          */
-        void updateField(StrainLevel level, uint32_t value);
+        void updateField(StrainLevel level, int32_t value);
 
-        void updateField(const sdk::ConfigField<uint32_t>& field, const uint32_t& newValue) { Base::updateField(field, newValue); }
+        void updateField(const sdk::ConfigField<int32_t>& field, const int32_t& newValue) { Base::updateField(field, newValue); }
     };
+
+    StrainSensor(gpio_num_t DOUT, gpio_num_t SCK) :
+        m_hx711_dev({
+            .dout   = static_cast<gpio_num_t>(DOUT),
+            .pd_sck = static_cast<gpio_num_t>(SCK),
+            .gain   = HX711_GAIN_A_128,
+        }
+    ){};
 
     enum CalibrationState {
         INACTIVE,
@@ -96,14 +104,14 @@ public:
      * @brief Blocking function that waits for the sensor to become ready and read
      * @return int32_t, esp_err_t on error
      */
-    std::expected<uint32_t, std::error_code> readStrainLevel();
+    std::expected<int32_t, std::error_code> readStrainLevel();
 
     /**
      * @brief Blocking function that waits for the sensor to become ready and read
      * @param samples Number of times to read from the sensor for the average
-     * @return uint32_t, esp_err_t on error
+     * @return int32_t, esp_err_t on error
      */
-    std::expected<uint32_t, std::error_code> readAverageStrainLevel(size_t samples);
+    std::expected<int32_t, std::error_code> readAverageStrainLevel(size_t samples);
 
     /**
      * @brief Saves config to flash
@@ -139,15 +147,9 @@ private:
     CalibrationState m_calibrationStatus = CalibrationState::INACTIVE;
     std::error_code  m_calibrationError  = std::make_error_code(ESP_OK);
     Config           m_config;
-    uint32_t         m_restingStateNoise = 0;
+    int32_t         m_restingStateNoise = 0;
 
-    hx711_t m_hx711_dev = {
-            .dout   = static_cast<gpio_num_t>(CONFIG_STRAIN_SENSOR_DOUT_GPIO_NUM),
-            .pd_sck = static_cast<gpio_num_t>(CONFIG_STRAIN_SENSOR_SCK_GPIO_NUM),
-            .gain   = HX711_GAIN_A_128,
-    };
-
-
+    hx711_t m_hx711_dev;
 };
 
 #endif /* strain_sensor_HPP */
