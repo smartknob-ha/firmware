@@ -3,7 +3,7 @@
 
 #include <hx711.h>
 
-#include <simple_lowpass_filter.hpp>
+#include "simple_lowpass_filter.hpp"
 
 #include "Component.hpp"
 #include "ConfigProvider.hpp"
@@ -15,7 +15,7 @@
 class StrainSensor : public sdk::Component {
 public:
     enum StrainLevel {
-        RESTING,
+        RESTING = 1,
         LIGHT_PRESS,
         HARD_PRESS,
         MAX
@@ -61,7 +61,7 @@ public:
         m_hx711_dev({
             .dout   = static_cast<gpio_num_t>(DOUT),
             .pd_sck = static_cast<gpio_num_t>(SCK),
-            .gain   = HX711_GAIN_A_128,
+            .gain   = HX711_GAIN_A_64,
         }
     ){};
 
@@ -79,6 +79,7 @@ public:
     };
 
     static inline const etl::array<etl::string<15>, (uint8_t) StrainLevel::MAX> LevelToString{
+    "",
             "resting",
             "light press",
             "hard press"};

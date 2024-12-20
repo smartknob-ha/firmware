@@ -86,9 +86,9 @@ std::expected<StrainSensor::StrainState, std::error_code> StrainSensor::getPress
 
     StrainState state;
 
-    if (strainLevel.value() < m_config.hardPressValue.value()) {
+    if (strainLevel.value() - m_restingStateNoise > m_config.hardPressValue.value()) {
         state.level = StrainLevel::HARD_PRESS;
-    } else if (strainLevel.value() < m_config.lightPressValue.value()) {
+    } else if (strainLevel.value() - m_restingStateNoise > m_config.lightPressValue.value()) {
         state.level = StrainLevel::LIGHT_PRESS;
     } else {
         state.level = StrainLevel::RESTING;
@@ -196,58 +196,60 @@ void StrainSensor::calibrateValue(StrainSensor::StrainLevel strainLevel, bool sa
     if (strainLevel > StrainLevel::RESTING) {
         threshold = m_config.getStrainValue(static_cast<StrainLevel>(strainLevel - 1));
     } else {
-        threshold = INT32_MAX;
+        threshold = INT32_MIN;
     }
 
     // We might need to retry this multiple times if the average press value isn't low enough
-restartCalibration:
+    bool calibrationComplete = false;
+    while (!calibrationComplete) {
+        // Wait for press to go above threshold
+        if (strainLevel > StrainLevel::RESTING) {
+            ESP_LOGI(TAG, "Waiting for input to go above %s (%ld)", LevelToString[strainLevel - 1].c_str(), threshold);
 
-    // Wait for press to go below threshold
-    if (strainLevel > StrainLevel::RESTING) {
-        ESP_LOGI(TAG, "Waiting for input to go below %s (%ld)", LevelToString[strainLevel - 1].c_str(), threshold);
+            signed long level = INT32_MIN;
+            while (level <= threshold + (m_restingStateNoise * strainLevel)) {
+                auto data = readStrainLevel();
+                if (!data.has_value()) {
+                    ESP_LOGE(TAG, "Failed waiting for input");
+                    m_calibrationError  = data.error();
+                    m_calibrationStatus = CalibrationState::ERROR;
+                    return;
+                }
+                level = data.value();
+                vTaskDelay(pdMS_TO_TICKS(1));
+            }
+            ESP_LOGI(TAG, "Sufficient strain input detected [%ld], don't let go until next log message", level);
+        } else {
+            ESP_LOGI(TAG, "Calibrating resting value, no touchies until next log message");
+        }
+        m_calibrationStatus = CalibrationState::ACTIVE;
 
-        signed long level = INT32_MAX;
-        while (level > threshold - m_restingStateNoise) {
-            auto data = readStrainLevel();
-            if (!data.has_value()) {
-                ESP_LOGE(TAG, "Failed waiting for input");
-                m_calibrationError  = data.error();
-                m_calibrationStatus = CalibrationState::ERROR;
+        auto data = readAverageStrainLevel(CONFIG_STRAIN_SENSOR_NUM_CALIBRATION_MEASUREMENTS);
+        if (!data.has_value()) {
+            m_calibrationError  = data.error();
+            m_calibrationStatus = CalibrationState::ERROR;
+            return;
+        }
+
+        ESP_LOGI(TAG, "Measured %s value: %ld", LevelToString[strainLevel].c_str(), data.value());
+
+        // Higher strain levels need higher separation to avoid accidental hard presses
+        if (data.value() <= threshold + (m_restingStateNoise * strainLevel)) {
+            ESP_LOGI(TAG, "Please try again while pressing a *little* bit harder");
+        } else {
+            m_config.updateField(strainLevel, data.value());
+
+            if (save) {
+                if (const auto err = saveConfig()) {
+                    m_calibrationError  = err;
+                    m_calibrationStatus = CalibrationState::ERROR;
+                }
                 return;
             }
-            level = data.value();
-            vTaskDelay(pdMS_TO_TICKS(1));
+
+            m_calibrationError  = {};
+            m_calibrationStatus = CalibrationState::FINISHED;
+            calibrationComplete = true;
         }
-        ESP_LOGI(TAG, "Sufficient strain input detected, don't let go until next log message");
-    } else {
-        ESP_LOGI(TAG, "Calibrating resting value, no touchies until next log message");
     }
-    m_calibrationStatus = CalibrationState::ACTIVE;
-
-    auto data = readAverageStrainLevel(CONFIG_STRAIN_SENSOR_NUM_CALIBRATION_MEASUREMENTS);
-    if (!data.has_value()) {
-        m_calibrationError  = data.error();
-        m_calibrationStatus = CalibrationState::ERROR;
-        return;
-    }
-
-    ESP_LOGI(TAG, "Measured %s value: %ld", LevelToString[strainLevel].c_str(), data.value());
-
-    if (data.value() >= threshold) {
-        ESP_LOGI(TAG, "Please try again while pressing a *little* bit harder");
-        goto restartCalibration;
-    }
-
-    m_config.updateField(strainLevel, data.value());
-
-    if (save) {
-        if (const auto err = saveConfig()) {
-            m_calibrationError  = err;
-            m_calibrationStatus = CalibrationState::ERROR;
-        }
-        return;
-    }
-
-    m_calibrationError  = {};
-    m_calibrationStatus = CalibrationState::FINISHED;
 }
