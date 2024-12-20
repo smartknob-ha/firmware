@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <lvgl.h>
 #include <stdio.h>
 
 #include "DisplayDriver.hpp"
@@ -13,7 +14,6 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "lv_api_map.h"
 
 #define abortusMaximus abort()
 

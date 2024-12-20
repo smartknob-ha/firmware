@@ -3,6 +3,8 @@
 
 #include <hx711.h>
 
+#include <simple_lowpass_filter.hpp>
+
 #include "Component.hpp"
 #include "ConfigProvider.hpp"
 
