@@ -15,7 +15,18 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define abortusMaximus abort()
+//TODO To be placed in UI component once created
+std::mutex mutex;
+
+[[noreturn]] void lvgl_task(void*) {
+    while (1) {
+        mutex.lock();
+        uint32_t time_till_next = lv_timer_handler();
+        mutex.unlock();
+        // Sleep for a maximum time of CONFIG_LV_DEF_REFR_PERIOD
+        vTaskDelay(std::min(time_till_next, static_cast<uint32_t>(CONFIG_LV_DEF_REFR_PERIOD)) / portTICK_PERIOD_MS);
+    }
+}
 
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
@@ -45,45 +56,25 @@
     // Wait for components to actually be running
     while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
-    displayDriver.setBrightness(255);
-
-    auto column_ = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(column_, 240, 240);
-    lv_obj_set_flex_flow(column_, LV_FLEX_FLOW_COLUMN);
-
-    static lv_style_t style_indic;
-    lv_style_init(&style_indic);
-    lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
-    lv_style_set_bg_color(&style_indic, lv_palette_main(LV_PALETTE_BLUE));
-    lv_style_set_bg_grad_color(&style_indic, lv_palette_main(LV_PALETTE_RED));
-    lv_style_set_bg_grad_dir(&style_indic, LV_GRAD_DIR_HOR);
-
-    lv_obj_t * label1 = lv_label_create(lv_scr_act());
-    lv_obj_set_style_text_color(label1, lv_color_black(), LV_PART_MAIN);
-    lv_label_set_long_mode(label1, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
-
-    lv_obj_set_width(label1, 200);  /*Set smaller width to make the lines wrap*/
-    lv_obj_set_style_text_align(label1, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(label1, LV_ALIGN_CENTER, 0, -40);
-
-    lv_label_set_text(label1, "Setting up magnetic encoder, don't touch me please...");
-    lv_task_handler();
-
-    lv_obj_t * label2 = lv_label_create(lv_scr_act());
-    lv_label_set_long_mode(label2, LV_LABEL_LONG_WRAP); /* Break the long lines */
-    lv_obj_set_width(label2, 150);
-    lv_label_set_text(label2, "");
-    lv_obj_align(label2, LV_ALIGN_CENTER, 0, 40);
-
     auto res = magneticEncoder.getDevice();
     if (res.has_value()) {
-        motorDriver.setSensor(res.value());
+        //		MotorDriver motorDriver(res.value());
+
+        //		sdk::Manager::addComponent(motorDriver);
     } else {
         ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
     }
 
-    lv_task_handler();
+    lv_obj_t* dot = lv_led_create(lv_scr_act());
+    lv_obj_align(dot, LV_ALIGN_CENTER, 0, 0);
+    lv_led_off(dot);
 
+    displayDriver.setBrightness(255);
+
+    xTaskCreatePinnedToCore(lvgl_task, "LVGL", 4096, NULL, 24, NULL, 0);
+
+    //
+    // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_AQUA, .saturation = 255, .value = 150};
     msg.effect         = ringLights::RAINBOW_RADIAL;
@@ -137,13 +128,23 @@
     msg.effect = ringLights::POINTER;
     ringLights.enqueue(msg);
 
+
     char label2Buffer[150];
 
     int factoryResetCounter = 30;
     int count = 0;
     for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(10));
         auto degrees = magneticEncoder.getDegrees();
-        auto radians = magneticEncoder.getRadians();
+
+        if (count++ > 100) {
+            if (auto light = lightSensor.readLightLevel(); light.has_value()) {
+                ESP_LOGI("main", "light value: %ld", light.value());
+            }
+
+            ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
+            count = 0;
+        }
 
         msg.paramA = degrees.value();
         ringLights.enqueue(msg);
