@@ -93,13 +93,13 @@ private:
 
     static inline etl::string<13> otaAssetsLabel = "";
 
-    constexpr auto OTA_A_LABEL                  = "ota_a";
-    constexpr auto OTA_A_MAIN_PARTITION_LABEL   = "ota_a_assets";
-    constexpr auto MAIN_PARTITION_MOUNT_POINT   = "/main";
-    constexpr auto OTA_B_LABEL                  = "ota_b";
-    constexpr auto OTA_B_MAIN_PARTITION_LABEL   = "ota_b_assets";
-    constexpr auto STATIC_PARTITION_LABEL       = "static_assets";
-    constexpr auto STATIC_PARTITION_MOUNT_POINT = "/static_assets";
+    static constexpr auto OTA_A_LABEL                  = "ota_a";
+    static constexpr auto OTA_A_MAIN_PARTITION_LABEL   = "ota_a_assets";
+    static constexpr auto MAIN_PARTITION_MOUNT_POINT   = "/main";
+    static constexpr auto OTA_B_LABEL                  = "ota_b";
+    static constexpr auto OTA_B_MAIN_PARTITION_LABEL   = "ota_b_assets";
+    static constexpr auto STATIC_PARTITION_LABEL       = "static_assets";
+    static constexpr auto STATIC_PARTITION_MOUNT_POINT = "/static_assets";
 
     /**
      * Get the size of a file
