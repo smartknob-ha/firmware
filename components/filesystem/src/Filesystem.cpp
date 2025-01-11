@@ -1,10 +1,10 @@
 #include "Filesystem.hpp"
 
 #include <Component.hpp>
+#include <fcntl.h>
 
 #include "esp_littlefs.h"
 #include "esp_ota_ops.h"
-#include <fcntl.h>
 
 using Status = sdk::Component::Status;
 using res    = sdk::Component::res;
@@ -16,24 +16,22 @@ Status Filesystem::initialize() {
     }
 
     esp_vfs_littlefs_conf_t mainPartitionConf = {
-            .base_path = MAIN_PARTITION_MOUNT_POINT,
-            .partition_label = nullptr,
-            .partition = nullptr,
+            .base_path              = MAIN_PARTITION_MOUNT_POINT,
+            .partition_label        = nullptr,
+            .partition              = nullptr,
             .format_if_mount_failed = false,
-            .read_only = false,
-            .dont_mount = false,
-            .grow_on_mount = true
-    };
+            .read_only              = false,
+            .dont_mount             = false,
+            .grow_on_mount          = true};
 
     constexpr esp_vfs_littlefs_conf_t staticAssetsPartitionConf = {
-            .base_path = STATIC_PARTITION_MOUNT_POINT,
-            .partition_label = STATIC_PARTITION_LABEL,
-            .partition = nullptr,
+            .base_path              = STATIC_PARTITION_MOUNT_POINT,
+            .partition_label        = STATIC_PARTITION_LABEL,
+            .partition              = nullptr,
             .format_if_mount_failed = false,
-            .read_only = false,
-            .dont_mount = false,
-            .grow_on_mount = true
-    };
+            .read_only              = false,
+            .dont_mount             = false,
+            .grow_on_mount          = true};
 
     // Determine which partition to mount
     if (const auto currentPartition = esp_ota_get_running_partition()->label; strcmp(currentPartition, OTA_A_LABEL) == 0) {
@@ -68,7 +66,9 @@ Status Filesystem::initialize() {
 std::expected<Filesystem::PartitionInfo, std::error_code> Filesystem::partitionInfo(const etl::string<20>& partitionLabel) {
     std::size_t totalBytes = 0;
     std::size_t usedBytes  = 0;
-    if (auto ret = esp_littlefs_info(partitionLabel.c_str(), &totalBytes, &usedBytes); ret != ESP_OK) { return std::unexpected(std::make_error_code(ret)); }
+    if (const auto ret = esp_littlefs_info(partitionLabel.c_str(), &totalBytes, &usedBytes); ret != ESP_OK) {
+        return std::unexpected(std::make_error_code(ret));
+    }
 
     return PartitionInfo{totalBytes, usedBytes};
 }
