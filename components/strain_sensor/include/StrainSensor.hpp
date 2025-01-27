@@ -26,15 +26,15 @@ public:
 
     public:
         sdk::ConfigField<int32_t> restingValue{INT32_MAX, "restingValue"};
-        sdk::ConfigField<int32_t> lightPressValue{INT32_MAX, "lightPressValue"};
-        sdk::ConfigField<int32_t> hardPressValue{INT32_MAX, "hardPressValue"};
+        sdk::ConfigField<int32_t> lightPressOffsetValue{INT32_MAX, "lightPressOffsetValue"};
+        sdk::ConfigField<int32_t> hardPressOffsetValue{INT32_MAX, "hardPressOffsetValue"};
         sdk::ConfigField<int32_t> strainNoiseValue{INT32_MAX, "strainNoiseValue"};
 
         void allocateFields() {
-            restingValue     = allocate(restingValue);
-            lightPressValue = allocate(lightPressValue);
-            hardPressValue  = allocate(hardPressValue);
-            strainNoiseValue = allocate(strainNoiseValue);
+            restingValue     = Base::allocate(restingValue);
+            lightPressOffsetValue = Base::allocate(lightPressOffsetValue);
+            hardPressOffsetValue  = Base::allocate(hardPressOffsetValue);
+            strainNoiseValue = Base::allocate(strainNoiseValue);
         }
 
         explicit Config(const nlohmann::json& data) : Base(data) {
@@ -89,7 +89,7 @@ public:
     Status          getStatus() override;
     Status          initialize() override;
     Status          stop() override;
-    Status          run() override { return m_status; };
+    Status          run() override;
 
     /**
      * @brief Whether setup has been completed in the pass
@@ -150,7 +150,10 @@ private:
     CalibrationState m_calibrationStatus = CalibrationState::INACTIVE;
     std::error_code  m_calibrationError  = std::make_error_code(ESP_OK);
     Config           m_config;
-    int32_t         m_restingStateNoise = 0;
+    int32_t          m_restingStateNoise = 0;
+    float            m_filteredRestingLevel = 0;
+
+    espp::SimpleLowpassFilter m_restingFilter;
 
     hx711_t m_hx711_dev;
 };
