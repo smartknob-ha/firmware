@@ -1,0 +1,19 @@
+menu "Smartknob Filesystem"
+   config FILESYSTEM_OTA_RECEIVE_BUFFER_SIZE
+        int "Receive buffer size, should be multiple of 4096"
+        default 16384
+        help
+            Make sure the HTTPD task has enough stack.
+
+   config FILESYSTEM_OTA_MAX_TIMEOUT_RETRY
+        int "Max receive timeout retry count"
+        default 3
+        help
+            Number of times to retry receiving data if the connection times out.
+
+   config FILESYSTEM_OTA_POST_PATH
+        string "OTA POST path"
+        default "/api/v1/ota"
+        help
+            The path to post the OTA file to.
+endmenu
