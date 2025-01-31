@@ -13,7 +13,6 @@
 #include "HttpServer.hpp"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "semantic_versioning.hpp"
 
 namespace sdk::Http {
     class Server;
@@ -36,13 +35,10 @@ public:
 
     /**
      * Write a file to the filesystem
-     * @tparam FILEPATH_SIZE Length of the filepath
-     * @tparam FILESIZE Length of the data to write
      * @param filepath The path to the file to write
      * @param data The data to write to the file
      * @return std::error_code
      */
-    template<size_t FILEPATH_SIZE, size_t FILESIZE>
     static std::error_code writeFile(const etl::string_view filepath, const etl::string_view data) noexcept {
         const int fd = open(filepath.data(), O_WRONLY | O_CREAT, 0644);
         if (fd == -1) {
@@ -127,6 +123,7 @@ private:
         char                    firmwareVersion[20];
     };
 
+    // The HTTP server to register the OTA handler to
     const sdk::Http::Server& m_httpServer;
 
     /**
@@ -142,31 +139,92 @@ private:
         return st.st_size;
     }
 
+    /**
+     * Handles incoming OTA requests
+     * @param req The incoming request
+     * @return esp_err_t
+     */
     static esp_err_t otaHandler(httpd_req_t* req);
 
-    static esp_err_t otaWritePartition(httpd_req_t* req, const esp_partition_t* partition, const size_t updateSize, const std::span<uint8_t> sha256, std::span<char> buffer);
+    /**
+     * Write a partition with OTA data. First erase the partition, then writes the data to it and verifies the SHA256 hash
+     * @param req The request to write the partition from
+     * @param partition The partition to write to
+     * @param updateSize The size of the update
+     * @param sha256 The SHA256 hash of the update
+     * @param buffer The buffer to be used for receiving data and writing to the partition
+     * @return esp_err_t
+     */
+    static esp_err_t otaWritePartition(httpd_req_t* req, const esp_partition_t* partition, size_t updateSize, std::span<uint8_t> sha256, std::span<char> buffer);
 
+    /**
+     * Restart task that waits a second, and restarts the device
+     * Required for the OTA handler to finish its response before restarting
+     */
     static void restartTask(void*);
 
-    static esp_err_t receiveBuffer(httpd_req_t* req, const std::span<char> buffer, const size_t length);
+    /**
+     * Receive a buffer from a request, will keep receiving data until the buffer is at the desired length
+     * @param req The request to receive the buffer from
+     * @param buffer The buffer to receive the data into
+     * @param length The length of the buffer
+     * @return esp_err_t
+     */
+    static esp_err_t receiveBuffer(httpd_req_t* req, std::span<char> buffer, size_t length);
 
-    static bool verifyVersionNumber(const std::span<char> sha256);
+    /**
+     * TODO: Determine & implement version comparison
+     * Verify the version number of the incoming OTA update
+     * @param newVersion The version number of the incoming OTA update
+     * @return bool True if the version number is valid, false otherwise
+     */
+    static bool verifyVersionNumber(const etl::string_view newVersion);
 
     /**
      * Get information about a partition
      * @param partitionLabel The label of the partition to get information about
      * @return std::expected<PartitionInfo, std::error_code>
      */
-    static std::expected<PartitionInfo, std::error_code> partitionInfo(const etl::string<20>& partitionLabel);
+    static std::expected<PartitionInfo, std::error_code> partitionInfo(etl::string_view partitionLabel);
 
+    /**
+     * Register the OTA handler at CONFIG_FILESYSTEM_OTA_POST_PATH
+     * @return std::error_code of an esp_err_t
+     */
     std::error_code registerOTA() const;
 
-    static esp_err_t       handleOtaError(httpd_req_t* req, const esp_err_t error, const etl::string_view message, const httpd_err_code_t code);
-    static void            handleOtaError(httpd_req_t* req, const etl::string_view message, const httpd_err_code_t code);
+
+    /**
+     * Handle an OTA error, logs and sends the message + error to the client
+     * @param req The request that caused the error
+     * @param error The error code to log
+     * @param message The message to log
+     * @param code The HTTP error code to send
+     */
+    static esp_err_t handleOtaError(httpd_req_t* req, esp_err_t error, etl::string_view message, httpd_err_code_t code);
+
+    /**
+     * Handle an OTA error, logs and sends the message to the client
+     * @param req The request that caused the error
+     * @param message The message to log
+     * @param code The HTTP error code to send
+     */
+    static void handleOtaError(httpd_req_t* req, etl::string_view message, httpd_err_code_t code);
+
+    /**
+     * Convert a SHA256 hash to a string
+     * @param sha256 The SHA256 hash to convert
+     * @return etl::string<64> The SHA256 hash as a hexadecimal string
+     */
     static etl::string<64> sha256ToString(const std::span<uint8_t> sha256);
 
-
-    static bool verifyEntirePartition(const esp_partition_t* partition, const std::span<uint8_t> sha256);
+    /**
+     * Verify the SHA256 hash of an entire partition
+     * @param partition The partition to verify
+     * @param sha256 The SHA256 hash to verify against
+     * @return bool True if the SHA256 hash matches, false otherwise
+     */
+    static bool verifyEntirePartition(const esp_partition_t* partition, std::span<uint8_t> sha256);
 };
 
 #endif /* FILESYSTEM_HPP */

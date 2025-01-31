@@ -76,10 +76,10 @@ Status Filesystem::initialize() {
     return m_status = Status::RUNNING;
 }
 
-std::expected<Filesystem::PartitionInfo, std::error_code> Filesystem::partitionInfo(const etl::string<20>& partitionLabel) {
+std::expected<Filesystem::PartitionInfo, std::error_code> Filesystem::partitionInfo(etl::string_view partitionLabel) {
     std::size_t totalBytes = 0;
     std::size_t usedBytes  = 0;
-    if (const auto ret = esp_littlefs_info(partitionLabel.c_str(), &totalBytes, &usedBytes); ret != ESP_OK) {
+    if (const auto ret = esp_littlefs_info(partitionLabel.data(), &totalBytes, &usedBytes); ret != ESP_OK) {
         return std::unexpected(std::make_error_code(ret));
     }
 
@@ -319,7 +319,7 @@ std::error_code Filesystem::registerOTA() const {
     return err;
 }
 
-bool Filesystem::verifyVersionNumber(const std::span<char> sha256) {
+bool Filesystem::verifyVersionNumber(const etl::string_view newVersion) {
     auto currentVersion = semver::from_string_noexcept(esp_app_get_description()->version);
     // TODO: Implement version comparison
     return true;
