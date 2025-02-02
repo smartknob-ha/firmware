@@ -3,4 +3,5 @@ menu "Smartknob Config"
     rsource "../light_sensor/config"
     rsource "../display_driver/config"
     rsource "../magnetic_encoder/config"
+    rsource "../filesystem/config"
 endmenu

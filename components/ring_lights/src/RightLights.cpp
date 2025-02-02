@@ -40,6 +40,8 @@ namespace ringLights {
         auto* m     = (RingLights*) (_this);
         m->m_status = Status::INITIALIZING;
         m->flushThread();
+        // When the flushThread function returns, the task is finished and should be deleted
+        vTaskDelete(nullptr);
     }
 
     void RingLights::flushThread() {
