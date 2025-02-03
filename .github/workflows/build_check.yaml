@@ -22,4 +22,4 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
       - name: Build PlatformIO Project
-        run: pio run -e esp32-s3
+        run: pio run -e smartknob
