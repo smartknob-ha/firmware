@@ -2,13 +2,8 @@ Import("env")
 
 import csv
 import os
-
-try:
-    from littlefs import LittleFS
-except ImportError:
-    env.Execute("$PYTHONEXE -m pip install littlefs-python")
-    from littlefs import LittleFS
-
+import subprocess
+from os import path
 
 def convertToBytes(size_str):
     # Remove spaces and convert to uppercase
@@ -27,24 +22,23 @@ def convertToBytes(size_str):
 
 
 def createLittlefsImage(imageName, imageSize, directory):
-    fs = LittleFS(block_size=4096, block_count=imageSize // 4096)
 
-    for root, _, files in os.walk(directory):
-        # Only create directory if it's not the root of the filesystem
-        if root != directory:
-            relative_root = os.path.relpath(root, directory)
-            fs.mkdir(relative_root)
+    mklittlefs = path.join(env.PioPlatform().get_package_dir("tool-mklittlefs"), "mklittlefs")
 
-        for file in files:
-            file_path = os.path.join(root, file)
-            with open(file_path, 'rb') as f:
-                data = f.read()
-            fs_path = os.path.relpath(file_path, directory)
-            with fs.open(fs_path, 'w') as fs_file:
-                fs_file.write(data.decode('utf-8'))
+    command = [
+        mklittlefs,
+        "-c", str(directory),
+        "-d", str((imageSize // 4096)),
+        "-s", str(imageSize),
+        str(imageName)
+    ]
 
-    with open(imageName, 'wb') as image_file:
-        image_file.write(fs.context.buffer)
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        print("Error creating LittleFS image:")
+        print(e.stderr.decode())
+        env.Exit(1)
 
 
 def getMostRecentlyUpdatedFile(directory):
