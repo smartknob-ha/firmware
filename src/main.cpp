@@ -33,15 +33,15 @@ void lvgl_task(void*) {
     MagneticEncoder        magneticEncoder;
     MotorDriver            motorDriver;
 
-    	DisplayDriver::Config displayConfig{
-                .display_dc        = GPIO_NUM_16,
-                .display_reset     = GPIO_NUM_4,
-                .display_backlight = GPIO_NUM_7,
-                .spi_sclk          = GPIO_NUM_5,
-                .spi_mosi          = GPIO_NUM_6,
-                .spi_cs            = GPIO_NUM_15,
-                .rotation          = DisplayRotation::LANDSCAPE};
-        DisplayDriver displayDriver(displayConfig);
+    DisplayDriver::Config displayConfig{
+            .display_dc        = GPIO_NUM_16,
+            .display_reset     = GPIO_NUM_4,
+            .display_backlight = GPIO_NUM_7,
+            .spi_sclk          = GPIO_NUM_5,
+            .spi_mosi          = GPIO_NUM_6,
+            .spi_cs            = GPIO_NUM_15,
+            .rotation          = DisplayRotation::LANDSCAPE};
+    DisplayDriver displayDriver(displayConfig);
 
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
@@ -66,7 +66,6 @@ void lvgl_task(void*) {
 
     displayDriver.setBrightness(255);
 
-    //
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
@@ -79,7 +78,8 @@ void lvgl_task(void*) {
     esp_log_level_set(motorDriver.getTag().c_str(), ESP_LOG_DEBUG);
     sdk::Manager::addComponent(motorDriver);
     while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
-    motorDriver.setZero();
+
+    motorDriver.setDetentConfig(espp::detail::COARSE_VALUES_STRONG_DETENTS, 16);
 
     displayDriver.setBrightness(255);
 
@@ -103,8 +103,6 @@ void lvgl_task(void*) {
             ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
             ESP_LOGI("main", "raw encoder degrees: %lf", magneticEncoder.getDevice()->get()->get_degrees());
 
-            ESP_LOGI("main", "encoder radians: %lf", radians.value());
-            ESP_LOGI("main", "raw encoder radians: %lf", magneticEncoder.getDevice()->get()->get_radians());
             count = 0;
         }
 
