@@ -15,7 +15,7 @@ class MotorDriver final : public sdk::Component {
 public:
     MotorDriver() = default;
 
-    void setSensor(const std::shared_ptr<encoder> magnetic_encoder);
+    void setSensor(const std::shared_ptr<encoder>& magnetic_encoder);
 
     void setZero();
 
@@ -33,7 +33,7 @@ public:
      * @param position Position within the DetentConfig, gets
      *                 clamped to `config.min_position` and `config.max_position`
      */
-    void setDetentConfig(espp::detail::DetentConfig config, int position);
+    void setDetentConfig(const espp::detail::DetentConfig& config, int position) const;
 
 private:
     static const inline char TAG[] = "Magnetic encoder";
