@@ -27,10 +27,10 @@ build
 
 # ESP-IDF sdkconfig
 sdkconfig.*
-!sdkconfig.defaults
-!sdkconfig.esp32
-!sdkconfig.esp32-s2
-!sdkconfig.esp32-s3
+!sdkconfig.smartknob.defaults
+!sdkconfig.smartknob-debug.defaults
 
 *dependencies.lock
 .idea
+
+*.bin
