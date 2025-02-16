@@ -36,8 +36,8 @@ public:
 	Status run() override;
 	Status stop() override;
 
-	std::expected<double, std::error_code> getDegrees();
-	std::expected<double, std::error_code> getRadians();
+	std::expected<double, std::error_code> getDegrees() const;
+	std::expected<double, std::error_code> getRadians() const;
 
 	std::expected<std::shared_ptr<Mt6701_spi>, std::error_code> getDevice();
 
@@ -70,7 +70,7 @@ private:
 
 	std::shared_ptr<Mt6701_spi> m_dev;
 
-	bool read(uint8_t* data, size_t len);
+	bool read(uint8_t* data, size_t len) const;
 };
 
 
