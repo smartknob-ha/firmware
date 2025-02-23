@@ -53,19 +53,18 @@ static void IRAM_ATTR displaySpiPostTransfer(spi_transaction_t* t) {
         spi_device_release_bus(spi);
 
         lv_display_flush_ready(lv_display_get_default());
-
     }
 }
 
-extern "C" void IRAM_ATTR writeCommand(const uint8_t* data, const size_t length, const uint32_t user_data) {
+extern "C" void IRAM_ATTR writeCommand(uint8_t command, const uint8_t* parameters, size_t length, uint32_t user_data) {
     static spi_transaction_t t = {};
 
     t.cmd   = 0x02;
-    t.addr  = static_cast<uint32_t>(data[0]) << 8;
+    t.addr  = static_cast<uint32_t>(command) << 8;
     t.flags = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR;
     if (length > 0) {
         for (size_t i = 0; i < length; i++) {
-            t.tx_data[i] = data[i + 1];
+            t.tx_data[i] = parameters[i];
         }
         t.length = length * 8;
         t.flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
@@ -150,14 +149,13 @@ void DisplayDriver::sendLines(const int xStart, const int yStart, const int xEnd
     size_t remaining = length;
     size_t index     = 3; // Start at 3 because the first 3 transactions are required for setup
     while (remaining && index < transactions.size()) {
-        const size_t transfer_size    = std::min(remaining, max_transfer_size);
+        const size_t transfer_size = std::min(remaining, max_transfer_size);
         // Move the data pointer to the max_transfer_size times the amount of transactions already created
         transactions[index].tx_buffer = data + max_transfer_size * (index - 3);
         transactions[index].length    = transfer_size * 8; // Length is in bits
         if (index == 3) {
             transactions[index].flags = SPI_TRANS_MODE_QIO | SPI_TRANS_CS_KEEP_ACTIVE;
-        }
-        else {
+        } else {
             // Only the first transaction should transfer the command and address
             transactions[index].flags = SPI_TRANS_MODE_QIO | SPI_TRANS_CS_KEEP_ACTIVE | SPI_TRANS_VARIABLE_CMD |
                                         SPI_TRANS_VARIABLE_ADDR | SPI_TRANS_VARIABLE_DUMMY;
@@ -170,7 +168,7 @@ void DisplayDriver::sendLines(const int xStart, const int yStart, const int xEnd
     // Set the flush bit on the last transaction, index - 1 as index is already incremented
     transactions[index - 1].user = reinterpret_cast<void*>(user_data);
     // Have the final pixel transaction stop asserting the CS line
-    transactions[index - 1].flags &= ~ SPI_TRANS_CS_KEEP_ACTIVE;
+    transactions[index - 1].flags &= ~SPI_TRANS_CS_KEEP_ACTIVE;
 
     // Acquire the SPI bus, required for the SPI_TRANS_CS_KEEP_ACTIVE flag
     auto ret = spi_device_acquire_bus(spi, portMAX_DELAY);
@@ -265,7 +263,7 @@ Status DisplayDriver::initialize() {
 
     // initialize the controller
     espp::Sh8601::initialize(espp::display_drivers::Config{
-            .lcd_write        = writeCommand,
+            .write_command    = writeCommand,
             .lcd_send_lines   = sendLines,
             .reset_pin        = static_cast<gpio_num_t>(4),
             .data_command_pin = m_config.display_dc,
