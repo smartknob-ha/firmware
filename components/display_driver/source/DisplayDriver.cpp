@@ -6,8 +6,8 @@
 #include "driver/spi_master.h"
 #include "esp_attr.h"
 #include "esp_log.h"
-#include "hal/spi_types.h"
 #include "sh8601.hpp"
+#include "hal/spi_types.h"
 
 #define INIT_RETURN_ON_ERROR(err)                                      \
     do {                                                               \
@@ -20,6 +20,7 @@
 
 using Pixel   = lv_color_t;
 using Display = espp::Display<Pixel>;
+using Driver  = espp::Sh8601;
 
 static spi_device_handle_t spi;
 static size_t              num_queued_trans = 0;
@@ -50,8 +51,6 @@ static void IRAM_ATTR displaySpiPostTransfer(spi_transaction_t* t) {
     uint16_t user_flags   = reinterpret_cast<uint32_t>(t->user);
     bool     should_flush = user_flags & FLUSH_BIT;
     if (should_flush) {
-        spi_device_release_bus(spi);
-
         lv_display_flush_ready(lv_display_get_default());
     }
 }
@@ -74,10 +73,15 @@ extern "C" void IRAM_ATTR writeCommand(uint8_t command, const uint8_t* parameter
     }
     t.user = reinterpret_cast<void*>(user_data);
 
-    auto ret = spi_device_polling_transmit(spi, &t);
+    auto ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+    if (ret != ESP_OK) {
+        ESP_LOGE("CMD", "Failed to acquire bus: %s", esp_err_to_name(ret));
+    }
+    ret = spi_device_polling_transmit(spi, &t);
     if (ret != ESP_OK) {
         ESP_LOGE("CMD", "Failed to send command: %s", esp_err_to_name(ret));
     }
+    spi_device_release_bus(spi);
 }
 
 void DisplayDriver::waitForLines() {
@@ -108,17 +112,17 @@ void DisplayDriver::sendLines(const int xStart, const int yStart, const int xEnd
     // Initialize the above SPI transactions, this only has to be done once
     if (!initialized) {
         transactions[0].cmd    = 0x02;
-        transactions[0].addr   = static_cast<uint8_t>(espp::Sh8601::Command::caset) << 8;
+        transactions[0].addr   = static_cast<uint8_t>(Driver::Command::caset) << 8;
         transactions[0].length = 4 * 8;
         transactions[0].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
 
         transactions[1].cmd    = 0x02;
-        transactions[1].addr   = static_cast<uint8_t>(espp::Sh8601::Command::paset) << 8;
+        transactions[1].addr   = static_cast<uint8_t>(Driver::Command::paset) << 8;
         transactions[1].length = 4 * 8;
         transactions[1].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
 
         transactions[2].cmd    = 0x02;
-        transactions[2].addr   = static_cast<uint8_t>(espp::Sh8601::Command::ramwr) << 8;
+        transactions[2].addr   = static_cast<uint8_t>(Driver::Command::ramwr) << 8;
         transactions[2].length = 0;
         transactions[2].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR;
 
@@ -186,6 +190,7 @@ void DisplayDriver::sendLines(const int xStart, const int yStart, const int xEnd
             num_queued_trans++;
         }
     }
+    spi_device_release_bus(spi);
     // When we are here, the SPI driver is busy (in the background) getting the
     // transactions sent. That happens mostly using DMA, so the CPU doesn't have
     // much to do here. We're not going to wait for the transaction to finish
@@ -262,7 +267,7 @@ Status DisplayDriver::initialize() {
     INIT_RETURN_ON_ERROR(ret);
 
     // initialize the controller
-    espp::Sh8601::initialize(espp::display_drivers::Config{
+    Driver::initialize(espp::display_drivers::Config{
             .write_command    = writeCommand,
             .lcd_send_lines   = sendLines,
             .reset_pin        = static_cast<gpio_num_t>(4),
@@ -281,10 +286,8 @@ Status DisplayDriver::initialize() {
             .width                     = CONFIG_DISPLAY_WIDTH,
             .height                    = CONFIG_DISPLAY_HEIGHT,
             .pixel_buffer_size         = PIXEL_BUFFER_SIZE,
-            .flush_callback            = espp::Sh8601::flush,
-            .rotation_callback         = espp::Sh8601::rotate,
-            .backlight_pin             = static_cast<gpio_num_t>(-1),
-            .backlight_on_value        = BACKLIGHT_ON_VALUE,
+            .flush_callback            = Driver::flush,
+            .rotation_callback         = Driver::rotate,
             .rotation                  = static_cast<espp::DisplayRotation>(m_config.rotation),
             .software_rotation_enabled = true};
 
@@ -296,7 +299,7 @@ Status DisplayDriver::initialize() {
 }
 
 void DisplayDriver::setBrightness(uint8_t brightness) {
-    p_display->set_brightness(brightness / 255.0f);
+    Driver::set_brightness(brightness);
 }
 
 Status DisplayDriver::run() {
@@ -315,7 +318,7 @@ Status DisplayDriver::stop() {
     ESP_LOGD(TAG, "Pausing display driver");
 
     // First turn off the backlight to hide any garbage from the user
-    p_display->set_brightness(0.0f);
+    Driver::set_brightness(0.0f);
 
     // Now pause the display update task
     p_display->pause();

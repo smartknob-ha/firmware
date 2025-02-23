@@ -40,7 +40,7 @@ public:
 
     void enqueue(DisplayMsg& msg) override { DisplayMsgQueue::enqueue(msg); }
 
-    void setBrightness(uint8_t brightness);
+    static void setBrightness(uint8_t brightness);
 
 private:
     using DisplayMsgQueue = HasQueue<1, DisplayMsg, 0>;
