@@ -15,8 +15,15 @@ class MotorDriver final : public sdk::Component {
 public:
     MotorDriver() = default;
 
+    /**
+    * @brief Set the magnetic encoder, needed for the haptics to know the shaft angle
+    * @param magnetic_encoder Mt6701_spi encoder
+    */
     void setSensor(const std::shared_ptr<encoder>& magnetic_encoder);
 
+    /**
+    * @brief Returns the motor 0 degrees, takes a while and is currently unused
+    */
     void setZero();
 
 
@@ -35,10 +42,19 @@ public:
      */
     void setDetentConfig(const espp::detail::DetentConfig& config, int position) const;
 
+    /**
+    * @brief Returns haptic position within the current haptic config
+    */
+    float getPosition() const { return m_haptics->get_position(); };
+
 private:
     static const inline char TAG[] = "Magnetic encoder";
 
-    void updateMotionControlType(espp::detail::MotionControlType motionControlType);
+    /**
+    * @brief Sets the motor control type, also disables de motor momentarily
+    * @param motionControlType Desired control method for the motor
+    */
+    void updateMotionControlType(espp::detail::MotionControlType motionControlType) const;
 
     std::shared_ptr<encoder>          m_encoder;
     std::shared_ptr<espp::BldcDriver> m_driver;
@@ -70,8 +86,7 @@ private:
             .current_limit        = 1.5f, // Amps
             .zero_electric_offset = 0.0f, // set to zero to always calibrate, since this is a test
             .sensor_direction =
-                    espp::detail::SensorDirection::UNKNOWN, // set to unknown to always calibrate, since
-                                                            // this is a test
+                    espp::detail::SensorDirection::UNKNOWN, // set to unknown to always calibrate
             .foc_type          = espp::detail::FocType::SPACE_VECTOR_PWM,
             .driver            = {},
             .sensor            = {},
