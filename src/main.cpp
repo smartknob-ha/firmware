@@ -103,6 +103,8 @@ void lvgl_task(void*) {
             ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
             ESP_LOGI("main", "raw encoder degrees: %lf", magneticEncoder.getDevice()->get()->get_degrees());
 
+            ESP_LOGI("main", "current haptics position: %f", motorDriver.getPosition());
+
             count = 0;
         }
 

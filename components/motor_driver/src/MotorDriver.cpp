@@ -10,8 +10,6 @@ Status MotorDriver::initialize() {
 	m_motor->initialize();
     m_motor->enable();
 
-    setZero();
-
     m_haptics->update_detent_config(espp::detail::COARSE_VALUES_STRONG_DETENTS);
     m_haptics->start();
 
@@ -31,8 +29,8 @@ Status MotorDriver::stop() {
 }
 
 void MotorDriver::setDetentConfig(const espp::detail::DetentConfig& config, const int position) const {
-    m_haptics->set_position(position);
     m_haptics->update_detent_config(config);
+    m_haptics->set_position(position);
 }
 
 void MotorDriver::setSensor(const std::shared_ptr<encoder>& magnetic_encoder) {
@@ -81,7 +79,7 @@ void MotorDriver::setZero() {
     m_haptics->start();
 }
 
-void MotorDriver::updateMotionControlType(espp::detail::MotionControlType motionControlType) {
+void MotorDriver::updateMotionControlType(espp::detail::MotionControlType motionControlType) const {
     m_motor->disable();
     m_motor->set_motion_control_type(motionControlType);
     m_motor->enable();
