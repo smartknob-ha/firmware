@@ -108,7 +108,6 @@ void lvgl_task(void*) {
             count = 0;
         }
 
-        lv_task_handler();
         msg.paramA = degrees.value();
 
         ringLights.enqueue(msg);
