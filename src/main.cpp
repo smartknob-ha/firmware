@@ -6,6 +6,7 @@
 #include "LightSensor.hpp"
 #include "MagneticEncoder.hpp"
 #include "Manager.hpp"
+#include "MotorDriver.hpp"
 #include "RightLights.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
@@ -25,10 +26,12 @@ void lvgl_task(void*) {
     }
 }
 
+
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
     MagneticEncoder        magneticEncoder;
+    MotorDriver            motorDriver;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -42,7 +45,7 @@ void lvgl_task(void*) {
 
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
-    sdk::Manager::addComponent(magneticEncoder);
+	sdk::Manager::addComponent(magneticEncoder);
     sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
@@ -52,9 +55,7 @@ void lvgl_task(void*) {
 
     auto res = magneticEncoder.getDevice();
     if (res.has_value()) {
-        //		MotorDriver motorDriver(res.value());
-
-        //		sdk::Manager::addComponent(motorDriver);
+        motorDriver.setSensor(res.value());
     } else {
         ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
     }
@@ -65,7 +66,6 @@ void lvgl_task(void*) {
 
     displayDriver.setBrightness(255);
 
-    //
     // This is here for show, remove it if you want
     ringLights::effectMsg msg;
     msg.primaryColor   = {.hue = HUE_PINK, .saturation = 255, .value = 200};
@@ -74,7 +74,17 @@ void lvgl_task(void*) {
     msg.paramA         = 1.0f;
     msg.paramB         = 40;
     ringLights.enqueue(msg);
-    //
+
+    esp_log_level_set(motorDriver.getTag().c_str(), ESP_LOG_DEBUG);
+    sdk::Manager::addComponent(motorDriver);
+    while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
+
+    motorDriver.setDetentConfig(espp::detail::COARSE_VALUES_STRONG_DETENTS, 16);
+
+    displayDriver.setBrightness(255);
+
+    msg.primaryColor = {.hue = HUE_BLUE, .saturation = 255, .value = 200};
+    msg.effect = ringLights::POINTER;
 
     xTaskCreatePinnedToCore(lvgl_task, "LVGL", 4096, NULL, 24, NULL, 0);
 
@@ -82,13 +92,19 @@ void lvgl_task(void*) {
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(10));
         auto degrees = magneticEncoder.getDegrees();
+        auto radians = magneticEncoder.getRadians();
+        auto dev     = magneticEncoder.getDevice();
 
-        if (count++ > 100) {
+        if (++count > 100) {
             if (auto light = lightSensor.readLightLevel(); light.has_value()) {
                 ESP_LOGI("main", "light value: %ld", light.value());
             }
 
             ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
+            ESP_LOGI("main", "raw encoder degrees: %lf", magneticEncoder.getDevice()->get()->get_degrees());
+
+            ESP_LOGI("main", "current haptics position: %f", motorDriver.getPosition());
+
             count = 0;
         }
 
