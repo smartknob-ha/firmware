@@ -1,31 +1,36 @@
-#include "../include/MotorDriver.hpp"
-#include "high_resolution_timer.hpp"
+#include "MotorDriver.hpp"
 
 using Status = sdk::Component::Status;
 using res = sdk::Component::res;
 
 Status MotorDriver::initialize() {
+    if (Status::RUNNING <= m_status && m_status >= Status::STOPPING) {
+        return m_status;
+    }
+
     m_status = Status::INITIALIZING;
 
-	m_motor->initialize();
+    m_motor->initialize();
     m_motor->enable();
 
     m_haptics->update_detent_config(espp::detail::COARSE_VALUES_STRONG_DETENTS);
     m_haptics->start();
 
-	return m_status = Status::RUNNING;
+    return m_status = Status::RUNNING;
 }
 
 Status MotorDriver::run() {
-    m_motor->loop_foc();
-	return Status::RUNNING;
+    if (m_status == Status::RUNNING) {
+        m_motor->loop_foc();
+    }
+    return m_status;
 }
 
 Status MotorDriver::stop() {
     m_haptics->stop();
     m_motor->disable();
-    m_status = Status::ERROR;
-	return m_status;
+
+	return m_status = Status::STOPPED;
 }
 
 void MotorDriver::setDetentConfig(const espp::detail::DetentConfig& config, const int position) const {
@@ -45,12 +50,12 @@ void MotorDriver::setSensor(const std::shared_ptr<encoder>& magnetic_encoder) {
     m_haptics = std::make_unique<BldcHaptics>(m_hapticsConfig);
 }
 
-void MotorDriver::setZero() {
+void MotorDriver::setZero() const {
     m_haptics->stop();
 
     updateMotionControlType(espp::detail::MotionControlType::ANGLE);
 
-#define DAMPENER M_PI / 72
+    constexpr float dampener = M_PI / 72;
 
     auto angle = m_motor->get_shaft_angle();
 
@@ -58,7 +63,7 @@ void MotorDriver::setZero() {
 
     while (angle < 0.0) {
         TickType_t start = xTaskGetTickCount();
-        m_motor->move(angle + DAMPENER);
+        m_motor->move(angle + dampener);
         m_motor->loop_foc();
         xTaskDelayUntil(&start, portTICK_PERIOD_MS);
         angle = m_motor->get_shaft_angle();
@@ -66,7 +71,7 @@ void MotorDriver::setZero() {
 
     while (angle > 0.0) {
         TickType_t start = xTaskGetTickCount();
-        m_motor->move(angle - DAMPENER);
+        m_motor->move(angle - dampener);
         m_motor->loop_foc();
         xTaskDelayUntil(&start, portTICK_PERIOD_MS);
         angle = m_motor->get_shaft_angle();

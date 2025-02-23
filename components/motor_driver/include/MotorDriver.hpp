@@ -24,7 +24,7 @@ public:
     /**
     * @brief Returns the motor 0 degrees, takes a while and is currently unused
     */
-    void setZero();
+    void setZero() const;
 
 
     /* Component override functions */
