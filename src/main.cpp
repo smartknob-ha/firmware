@@ -13,6 +13,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "color.h"
+
 //TODO To be placed in UI component once created
 std::mutex mutex;
 void lvgl_task(void*) {
@@ -26,9 +28,9 @@ void lvgl_task(void*) {
 }
 
 [[noreturn]] void startSmartknob(void) {
-    ringLights::RingLights ringLights;
-    LightSensor            lightSensor;
-    MagneticEncoder        magneticEncoder;
+    // ringLights::RingLights ringLights;
+    // LightSensor            lightSensor;
+    // MagneticEncoder        magneticEncoder;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -40,9 +42,9 @@ void lvgl_task(void*) {
             .rotation          = DisplayRotation::LANDSCAPE};
     DisplayDriver displayDriver(displayConfig);
 
-    sdk::Manager::addComponent(ringLights);
-    sdk::Manager::addComponent(lightSensor);
-    sdk::Manager::addComponent(magneticEncoder);
+    // sdk::Manager::addComponent(ringLights);
+    // sdk::Manager::addComponent(lightSensor);
+    // sdk::Manager::addComponent(magneticEncoder);
     sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
@@ -50,18 +52,21 @@ void lvgl_task(void*) {
     // Wait for components to actually be running
     while (!sdk::Manager::isInitialized()) { vTaskDelay(1); };
 
-    auto res = magneticEncoder.getDevice();
-    if (res.has_value()) {
+    // auto res = magneticEncoder.getDevice();
+    // if (res.has_value()) {
         //		MotorDriver motorDriver(res.value());
 
         //		sdk::Manager::addComponent(motorDriver);
-    } else {
-        ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
-    }
+    // } else {
+        // ESP_LOGE("main", "Unable to start magnetic encoder: %s", res.error().message().c_str());
+    // }
 
     lv_obj_t* dot = lv_led_create(lv_scr_act());
+    auto test = lv_scr_act();
     lv_obj_align(dot, LV_ALIGN_CENTER, 0, 0);
     lv_led_off(dot);
+
+    lv_led_set_color(dot, lv_color_hex(0x00FF00));
 
     displayDriver.setBrightness(255);
 
@@ -73,7 +78,7 @@ void lvgl_task(void*) {
     msg.effect         = ringLights::POINTER;
     msg.paramA         = 1.0f;
     msg.paramB         = 40;
-    ringLights.enqueue(msg);
+    // ringLights.enqueue(msg);
     //
 
     xTaskCreatePinnedToCore(lvgl_task, "LVGL", 4096, NULL, 24, NULL, 0);
@@ -81,31 +86,31 @@ void lvgl_task(void*) {
     size_t count = 0;
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(10));
-        auto degrees = magneticEncoder.getDegrees();
+        // auto degrees = magneticEncoder.getDegrees();
 
         if (count++ > 100) {
-            if (auto light = lightSensor.readLightLevel(); light.has_value()) {
-                ESP_LOGI("main", "light value: %ld", light.value());
-            }
+            // if (auto light = lightSensor.readLightLevel(); light.has_value()) {
+                // ESP_LOGI("main", "light value: %ld", light.value());
+            // }
 
-            ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
+            // ESP_LOGI("main", "encoder degrees: %lf", degrees.value());
             count = 0;
         }
 
-        msg.paramA = degrees.value();
+        // msg.paramA = degrees.value();
 
-        ringLights.enqueue(msg);
+        // ringLights.enqueue(msg);
 
-        auto x = static_cast<int>(100 * std::cos((magneticEncoder.getRadians().value() * -1) - M_PI_2));
-        auto y = static_cast<int>(100 * std::sin((magneticEncoder.getRadians().value() * -1) - M_PI_2));
+        // auto x = static_cast<int>(100 * std::cos((magneticEncoder.getRadians().value() * -1) - M_PI_2));
+        // auto y = static_cast<int>(100 * std::sin((magneticEncoder.getRadians().value() * -1) - M_PI_2));
         std::scoped_lock lock{mutex};
-        lv_obj_align(dot, LV_ALIGN_CENTER, x, y);
+        lv_obj_align(dot, LV_ALIGN_CENTER, 0, 0);
     }
 }
 
 extern "C" void app_main(void) {
-    ESP_LOGI("main", "\nSleeping for 5 seconds before boot...\n");
-    sleep(5);
+    // ESP_LOGI("main", "\nSleeping for 5 seconds before boot...\n");
+    // sleep(5);
 
     /* Print chip information */
     esp_chip_info_t chipInfo;

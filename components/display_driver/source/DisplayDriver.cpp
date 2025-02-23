@@ -6,8 +6,8 @@
 #include "driver/spi_master.h"
 #include "esp_attr.h"
 #include "esp_log.h"
-#include "gc9a01.hpp"
 #include "hal/spi_types.h"
+#include "sh8601.hpp"
 
 #define INIT_RETURN_ON_ERROR(err)                                      \
     do {                                                               \
@@ -18,21 +18,21 @@
         }                                                              \
     } while (0)
 
-using Pixel = lv_color16_t;
+using Pixel   = lv_color_t;
 using Display = espp::Display<Pixel>;
 
 static spi_device_handle_t spi;
 static size_t              num_queued_trans = 0;
 static gpio_num_t          display_dc;
 
-static constexpr size_t            SPI_QUEUE_SIZE     = 7;
+static constexpr size_t            SPI_QUEUE_SIZE     = 10;
 static constexpr int               FLUSH_BIT          = (1 << (int) espp::display_drivers::Flags::FLUSH_BIT);
 static constexpr int               DC_LEVEL_BIT       = (1 << (int) espp::display_drivers::Flags::DC_LEVEL_BIT);
 static constexpr int               SPI_CLOCK_SPEED    = CONFIG_DISPLAY_SPI_CLOCK_SPEED * 1000 * 1000;
 static constexpr spi_host_device_t SPI_BUS            = static_cast<const spi_host_device_t>(CONFIG_DISPLAY_SPI_BUS);
 static constexpr bool              BACKLIGHT_ON_VALUE = true;
 static constexpr bool              RESET_VALUE        = false;
-static constexpr size_t            PIXEL_BUFFER_SIZE  = CONFIG_DISPLAY_WIDTH * 50;
+static constexpr size_t            PIXEL_BUFFER_SIZE  = CONFIG_DISPLAY_WIDTH * CONFIG_DISPLAY_HEIGHT / 10;
 
 #ifdef CONFIG_DISPLAY_FRAMEBUFFER_IN_PSRAM
 static Pixel EXT_RAM_BSS_ATTR frameBuffer_0[PIXEL_BUFFER_SIZE];
@@ -43,48 +43,51 @@ static Pixel frameBuffer_1[PIXEL_BUFFER_SIZE];
 #endif
 static std::unique_ptr<Display> p_display;
 
-// This function is called (in irq context!) just before a transmission starts.
-// It will set the D/C line to the value indicated in the user field
-// (DC_LEVEL_BIT).
-static void IRAM_ATTR displaySpiPreTransfer(spi_transaction_t* t) {
-    uint32_t user_flags = (uint32_t) (t->user);
-    bool     dc_level   = user_flags & DC_LEVEL_BIT;
-    gpio_set_level(display_dc, dc_level);
-}
-
 // This function is called (in irq context!) just after a transmission ends. It
 // will indicate to lvgl that the next flush is ready to be done if the
 // FLUSH_BIT is set.
 static void IRAM_ATTR displaySpiPostTransfer(spi_transaction_t* t) {
-    uint16_t user_flags   = (uint32_t) (t->user);
+    uint16_t user_flags   = reinterpret_cast<uint32_t>(t->user);
     bool     should_flush = user_flags & FLUSH_BIT;
     if (should_flush) {
-        lv_display_t *disp = _lv_refr_get_disp_refreshing();
-        lv_display_flush_ready(disp);
+        spi_device_release_bus(spi);
+
+        lv_display_flush_ready(lv_display_get_default());
+
     }
 }
 
-extern "C" void IRAM_ATTR displayWrite(const uint8_t* data, size_t length, uint32_t user_data) {
-    if (length == 0) {
-        return;
+extern "C" void IRAM_ATTR writeCommand(const uint8_t* data, const size_t length, const uint32_t user_data) {
+    static spi_transaction_t t = {};
+
+    t.cmd   = 0x02;
+    t.addr  = static_cast<uint32_t>(data[0]) << 8;
+    t.flags = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR;
+    if (length > 0) {
+        for (size_t i = 0; i < length; i++) {
+            t.tx_data[i] = data[i + 1];
+        }
+        t.length = length * 8;
+        t.flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
+    } else {
+        t.tx_buffer = nullptr;
+        t.length    = 0;
     }
-    static spi_transaction_t t;
-    memset(&t, 0, sizeof(t));
-    t.length    = length * 8;
-    t.tx_buffer = data;
-    t.user      = (void*) user_data;
-    spi_device_polling_transmit(spi, &t);
+    t.user = reinterpret_cast<void*>(user_data);
+
+    auto ret = spi_device_polling_transmit(spi, &t);
+    if (ret != ESP_OK) {
+        ESP_LOGE("CMD", "Failed to send command: %s", esp_err_to_name(ret));
+    }
 }
 
 void DisplayDriver::waitForLines() {
-    spi_transaction_t* rtrans;
-    esp_err_t          ret;
+    spi_transaction_t* transaction_result = nullptr;
     // Wait for all transactions to be done and get back the results.
     while (num_queued_trans) {
-        // fmt::print("Waiting for {} lines\n", num_queued_trans);
-        ret = spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+        auto ret = spi_device_get_trans_result(spi, &transaction_result, portMAX_DELAY);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Could not get transaction result: %s\n", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Couldn't get transaction result: %s", esp_err_to_name(ret));
         }
         num_queued_trans--;
         // We could inspect rtrans now if we received any info back. The LCD is treated as write-only,
@@ -92,53 +95,95 @@ void DisplayDriver::waitForLines() {
     }
 }
 
-void DisplayDriver::sendLines(int xs, int ys, int xe, int ye, const uint8_t* data,
-                                uint32_t user_data) {
-    // if we haven't waited by now, wait here...
-    waitForLines();
-    esp_err_t ret;
+void DisplayDriver::sendLines(const int xStart, const int yStart, const int xEnd, const int yEnd, const uint8_t* data,
+                              const uint32_t user_data) {
+    static bool initialized = false;
+
     // Transaction descriptors. Declared static so they're not allocated on the stack; we need this
     // memory even when this function is finished because the SPI driver needs access to it even while
     // we're already calculating the next line.
-    static spi_transaction_t trans[6];
-    // In theory, it's better to initialize trans and data only once and hang on to the initialized
-    // variables. We allocate them on the stack, so we need to re-init them each call.
-    for (int i = 0; i < 6; i++) {
-        memset(&trans[i], 0, sizeof(spi_transaction_t));
-        if ((i & 1) == 0) {
-            // Even transfers are commands
-            trans[i].length = 8;
-            trans[i].user   = (void*) 0;
-        } else {
-            // Odd transfers are data
-            trans[i].length = 8 * 4;
-            trans[i].user   = (void*) DC_LEVEL_BIT;
-        }
-        trans[i].flags = SPI_TRANS_USE_TXDATA;
+    static std::array<spi_transaction_t, SPI_QUEUE_SIZE> transactions = {};
+
+    static size_t max_transfer_size = 0;
+
+    // Initialize the above SPI transactions, this only has to be done once
+    if (!initialized) {
+        transactions[0].cmd    = 0x02;
+        transactions[0].addr   = static_cast<uint8_t>(espp::Sh8601::Command::caset) << 8;
+        transactions[0].length = 4 * 8;
+        transactions[0].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
+
+        transactions[1].cmd    = 0x02;
+        transactions[1].addr   = static_cast<uint8_t>(espp::Sh8601::Command::paset) << 8;
+        transactions[1].length = 4 * 8;
+        transactions[1].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
+
+        transactions[2].cmd    = 0x02;
+        transactions[2].addr   = static_cast<uint8_t>(espp::Sh8601::Command::ramwr) << 8;
+        transactions[2].length = 0;
+        transactions[2].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR;
+
+        transactions[3].flags = SPI_TRANS_MODE_QIO;
+        transactions[3].cmd   = 0x32;
+        transactions[3].addr  = 0x003C00;
+
+        spi_bus_get_max_transaction_len(SPI_BUS, &max_transfer_size);
+        initialized = true;
     }
-    size_t length       = (xe - xs + 1) * (ye - ys + 1) * 2;
-    trans[0].tx_data[0] = (uint8_t) espp::Gc9a01::Command::caset;
-    trans[1].tx_data[0] = (xs) >> 8;
-    trans[1].tx_data[1] = (xs) & 0xff;
-    trans[1].tx_data[2] = (xe) >> 8;
-    trans[1].tx_data[3] = (xe) & 0xff;
-    trans[2].tx_data[0] = (uint8_t) espp::Gc9a01::Command::raset;
-    trans[3].tx_data[0] = (ys) >> 8;
-    trans[3].tx_data[1] = (ys) & 0xff;
-    trans[3].tx_data[2] = (ye) >> 8;
-    trans[3].tx_data[3] = (ye) & 0xff;
-    trans[4].tx_data[0] = (uint8_t) espp::Gc9a01::Command::ramwr;
-    trans[5].tx_buffer  = data;
-    trans[5].length     = length * 8;
-    // undo SPI_TRANS_USE_TXDATA flag
-    trans[5].flags = 0;
-    // we need to keep the dc bit set, but also add our flags
-    trans[5].user = (void*) (DC_LEVEL_BIT | user_data);
-    // Queue all transactions.
-    for (int i = 0; i < 6; i++) {
-        ret = spi_device_queue_trans(spi, &trans[i], portMAX_DELAY);
+
+    const size_t length = (xEnd - xStart + 1) * (yEnd - yStart + 1) * sizeof(Pixel);
+
+    // Wait for previous flush transactions to finish
+    waitForLines();
+
+    // Bitwise operations are to split the coordinates into two 8-bit values
+    transactions[0].tx_data[0] = (xStart) >> 8;
+    transactions[0].tx_data[1] = (xStart) & 0xff;
+    transactions[0].tx_data[2] = (xEnd) >> 8;
+    transactions[0].tx_data[3] = (xEnd) & 0xff;
+
+    transactions[1].tx_data[0] = (yStart) >> 8;
+    transactions[1].tx_data[1] = (yStart) & 0xff;
+    transactions[1].tx_data[2] = (yEnd) >> 8;
+    transactions[1].tx_data[3] = (yEnd) & 0xff;
+
+    size_t remaining = length;
+    size_t index     = 3; // Start at 3 because the first 3 transactions are required for setup
+    while (remaining && index < transactions.size()) {
+        const size_t transfer_size    = std::min(remaining, max_transfer_size);
+        // Move the data pointer to the max_transfer_size times the amount of transactions already created
+        transactions[index].tx_buffer = data + max_transfer_size * (index - 3);
+        transactions[index].length    = transfer_size * 8; // Length is in bits
+        if (index == 3) {
+            transactions[index].flags = SPI_TRANS_MODE_QIO | SPI_TRANS_CS_KEEP_ACTIVE;
+        }
+        else {
+            // Only the first transaction should transfer the command and address
+            transactions[index].flags = SPI_TRANS_MODE_QIO | SPI_TRANS_CS_KEEP_ACTIVE | SPI_TRANS_VARIABLE_CMD |
+                                        SPI_TRANS_VARIABLE_ADDR | SPI_TRANS_VARIABLE_DUMMY;
+        }
+
+        remaining -= transfer_size;
+        index++;
+    }
+
+    // Set the flush bit on the last transaction, index - 1 as index is already incremented
+    transactions[index - 1].user = reinterpret_cast<void*>(user_data);
+    // Have the final pixel transaction stop asserting the CS line
+    transactions[index - 1].flags &= ~ SPI_TRANS_CS_KEEP_ACTIVE;
+
+    // Acquire the SPI bus, required for the SPI_TRANS_CS_KEEP_ACTIVE flag
+    auto ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Couldn't acquire bus: %s", esp_err_to_name(ret));
+        return;
+    }
+
+    // Queue all used transactions
+    for (int i = 0; i < index; i++) {
+        esp_err_t ret = spi_device_queue_trans(spi, &transactions[i], portMAX_DELAY);
         if (ret != ESP_OK) {
-            fmt::print("Couldn't queue trans: {} '{}'\n", ret, esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Couldn't queue transaction: %s", esp_err_to_name(ret));
         } else {
             num_queued_trans++;
         }
@@ -163,46 +208,69 @@ Status DisplayDriver::initialize() {
         return m_status = Status::RUNNING;
     }
 
+    constexpr auto gpio_output_pin_sel = (1ULL << static_cast<gpio_num_t>(3));
+
+
+    constexpr gpio_config_t o_conf{.pin_bit_mask = gpio_output_pin_sel,
+                                   .mode         = GPIO_MODE_OUTPUT,
+                                   .pull_up_en   = GPIO_PULLUP_DISABLE,
+                                   .pull_down_en = GPIO_PULLDOWN_DISABLE,
+                                   .intr_type    = GPIO_INTR_DISABLE};
+    ESP_ERROR_CHECK(gpio_config(&o_conf));
+
+    gpio_set_level(GPIO_NUM_3, 1);
+
+
     m_status = Status::INITIALIZING;
     ESP_LOGD(TAG, "Initializing display driver");
 
     // Used in callbacks, those can't take non-static members directly
     display_dc = m_config.display_dc;
 
-    spi_bus_config_t buscfg;
-    memset(&buscfg, 0, sizeof(buscfg));
-    buscfg.mosi_io_num     = m_config.spi_mosi;
-    buscfg.miso_io_num     = -1;
-    buscfg.sclk_io_num     = m_config.spi_sclk;
-    buscfg.quadwp_io_num   = -1;
-    buscfg.quadhd_io_num   = -1;
-    buscfg.max_transfer_sz = PIXEL_BUFFER_SIZE * sizeof(lv_color_t);
+    spi_bus_config_t buscfg = {};
+    // buscfg.data0_io_num = 11;
+    // buscfg.data1_io_num = 13;
+    buscfg.mosi_io_num  = 11;
+    buscfg.miso_io_num  = 13;
+    buscfg.data2_io_num = 7;
+    buscfg.data3_io_num = 14;
+    buscfg.sclk_io_num  = 12;
+
+    buscfg.data_io_default_level = true;
+
+    buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
+    // buscfg.flags           = SPICOMMON_BUSFLAG_MASTER | SPICOMMON_BUSFLAG_GPIO_PINS;
+    buscfg.max_transfer_sz = 32768; // This is the hardware limit of a single DMA transfer
+
     // Initialize the SPI bus
     auto ret = spi_bus_initialize(SPI_BUS, &buscfg, SPI_DMA_CH_AUTO);
     INIT_RETURN_ON_ERROR(ret);
 
     // create the spi device
-    spi_device_interface_config_t devcfg;
-    memset(&devcfg, 0, sizeof(devcfg));
-    devcfg.mode           = 0;
-    devcfg.clock_speed_hz = SPI_CLOCK_SPEED;
-    devcfg.input_delay_ns = 0;
-    devcfg.spics_io_num   = m_config.spi_cs;
-    devcfg.queue_size     = SPI_QUEUE_SIZE;
-    devcfg.pre_cb         = displaySpiPreTransfer;
-    devcfg.post_cb        = displaySpiPostTransfer;
+    spi_device_interface_config_t devcfg = {};
+    devcfg.mode                          = 0;
+    devcfg.clock_speed_hz                = SPI_CLOCK_SPEED;
+    devcfg.input_delay_ns                = 0;
+    devcfg.spics_io_num                  = 10;
+    devcfg.queue_size                    = SPI_QUEUE_SIZE;
+    devcfg.flags                         = SPI_DEVICE_HALFDUPLEX;
+    devcfg.post_cb                       = displaySpiPostTransfer;
+
+    devcfg.command_bits = 8;
+    devcfg.address_bits = 24;
+
     // Attach the LCD to the SPI bus
     ret = spi_bus_add_device(SPI_BUS, &devcfg, &spi);
     INIT_RETURN_ON_ERROR(ret);
 
     // initialize the controller
-    espp::Gc9a01::initialize(espp::display_drivers::Config{
-            .lcd_write        = displayWrite,
+    espp::Sh8601::initialize(espp::display_drivers::Config{
+            .lcd_write        = writeCommand,
             .lcd_send_lines   = sendLines,
-            .reset_pin        = m_config.display_reset,
+            .reset_pin        = static_cast<gpio_num_t>(4),
             .data_command_pin = m_config.display_dc,
             .reset_value      = RESET_VALUE,
-            .invert_colors    = true,
+            .invert_colors    = false,
             .offset_x         = 0,
             .offset_y         = 0,
             .mirror_x         = false,
@@ -215,9 +283,9 @@ Status DisplayDriver::initialize() {
             .width                     = CONFIG_DISPLAY_WIDTH,
             .height                    = CONFIG_DISPLAY_HEIGHT,
             .pixel_buffer_size         = PIXEL_BUFFER_SIZE,
-            .flush_callback            = espp::Gc9a01::flush,
-            .rotation_callback         = espp::Gc9a01::rotate,
-            .backlight_pin             = m_config.display_backlight,
+            .flush_callback            = espp::Sh8601::flush,
+            .rotation_callback         = espp::Sh8601::rotate,
+            .backlight_pin             = static_cast<gpio_num_t>(-1),
             .backlight_on_value        = BACKLIGHT_ON_VALUE,
             .rotation                  = static_cast<espp::DisplayRotation>(m_config.rotation),
             .software_rotation_enabled = true};

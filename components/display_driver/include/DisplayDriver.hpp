@@ -57,7 +57,7 @@ private:
 
     static void waitForLines();
 
-    static void IRAM_ATTR sendLines(int xs, int ys, int xe, int ye, const uint8_t* data, uint32_t user_data);
+    static void IRAM_ATTR sendLines(int xStart, int yStart, int xEnd, int yEnd, const uint8_t* data, uint32_t user_data);
 };
 
 #endif // DISPLAY_DRIVER_HPP
