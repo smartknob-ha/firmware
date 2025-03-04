@@ -6,8 +6,8 @@
 #include "driver/spi_master.h"
 #include "esp_attr.h"
 #include "esp_log.h"
-#include "sh8601.hpp"
 #include "hal/spi_types.h"
+#include "sh8601.hpp"
 
 #define INIT_RETURN_ON_ERROR(err)                                      \
     do {                                                               \
@@ -55,23 +55,24 @@ static void IRAM_ATTR displaySpiPostTransfer(spi_transaction_t* t) {
     }
 }
 
-extern "C" void IRAM_ATTR writeCommand(uint8_t command, const uint8_t* parameters, size_t length, uint32_t user_data) {
+extern "C" void IRAM_ATTR writeCommand(uint8_t command, std::span<const uint8_t> parameters, uint32_t user_data) {
     static spi_transaction_t t = {};
 
     t.cmd   = 0x02;
     t.addr  = static_cast<uint32_t>(command) << 8;
     t.flags = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR;
-    if (length > 0) {
-        for (size_t i = 0; i < length; i++) {
-            t.tx_data[i] = parameters[i];
-        }
-        t.length = length * 8;
-        t.flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR | SPI_TRANS_USE_TXDATA;
-    } else {
-        t.tx_buffer = nullptr;
-        t.length    = 0;
-    }
+    t.length = parameters.size() * 8;
     t.user = reinterpret_cast<void*>(user_data);
+
+    if (parameters.size() <= 4) {
+        // copy the data pointer to trans[0].tx_data
+        memcpy(t.tx_data, parameters.data(), parameters.size());
+        t.flags |= SPI_TRANS_USE_TXDATA;
+    }
+    else if (!parameters.empty()) {
+        t.tx_buffer = parameters.data();
+        t.flags = 0;
+    }
 
     auto ret = spi_device_acquire_bus(spi, portMAX_DELAY);
     if (ret != ESP_OK) {
@@ -126,9 +127,10 @@ void DisplayDriver::sendLines(const int xStart, const int yStart, const int xEnd
         transactions[2].length = 0;
         transactions[2].flags  = SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR;
 
+        // Discard this transaction, ramwr commands can also take pixel data as parameter
         transactions[3].flags = SPI_TRANS_MODE_QIO;
         transactions[3].cmd   = 0x32;
-        transactions[3].addr  = 0x003C00;
+        transactions[3].addr  = static_cast<uint8_t>(Driver::Command::ramwrc) << 8;
 
         spi_bus_get_max_transaction_len(SPI_BUS, &max_transfer_size);
         initialized = true;
@@ -280,18 +282,33 @@ Status DisplayDriver::initialize() {
             .mirror_y         = false,
     });
 
-    auto displayConfig = Display::NonAllocatingConfig{
-            .vram0                     = frameBuffer_0,
-            .vram1                     = frameBuffer_1,
-            .width                     = CONFIG_DISPLAY_WIDTH,
-            .height                    = CONFIG_DISPLAY_HEIGHT,
-            .pixel_buffer_size         = PIXEL_BUFFER_SIZE,
-            .flush_callback            = Driver::flush,
-            .rotation_callback         = Driver::rotate,
-            .rotation                  = static_cast<espp::DisplayRotation>(m_config.rotation),
-            .software_rotation_enabled = true};
+    // auto display = std::make_shared<Display>(
+            auto lvglConf = Display::LvglConfig{
+                    .width             = CONFIG_DISPLAY_WIDTH,
+                    .height            = CONFIG_DISPLAY_HEIGHT,
+                    .flush_callback    = Driver::flush,
+                    .rotation_callback = Driver::rotate,
+                    .rotation          = static_cast<espp::DisplayRotation>(m_config.rotation)};
+            auto oledConf = Display::OledConfig{
+                    .set_brightness_callback = Driver::set_brightness,
+                    .get_brightness_callback = Driver::get_brightness};
+            auto memConf = Display::StaticMemoryConfig{
+                    .pixel_buffer_size = PIXEL_BUFFER_SIZE,
+                    .vram0             = frameBuffer_0,
+                    .vram1             = frameBuffer_1};
 
-    p_display = std::make_unique<Display>(displayConfig);
+    // auto displayConfig = Display::NonAllocatingConfig{
+    //         .vram0                     = frameBuffer_0,
+    //         .vram1                     = frameBuffer_1,
+    //         .width                     = CONFIG_DISPLAY_WIDTH,
+    //         .height                    = CONFIG_DISPLAY_HEIGHT,
+    //         .pixel_buffer_size         = PIXEL_BUFFER_SIZE,
+    //         .flush_callback            = Driver::flush,
+    //         .rotation_callback         = Driver::rotate,
+    //         .rotation                  = static_cast<espp::DisplayRotation>(m_config.rotation),
+    //         .software_rotation_enabled = true};
+
+    p_display = std::make_unique<Display>(lvglConf, oledConf, memConf);
 
     m_initialized = true;
     ESP_LOGD(TAG, "Finished initializing display driver");
