@@ -8,6 +8,7 @@
 #include "Manager.hpp"
 #include "MotorDriver.hpp"
 #include "RightLights.hpp"
+#include "StrainSensor.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_log.h"
@@ -26,12 +27,69 @@ void lvgl_task(void*) {
     }
 }
 
+void calibrateStrainSensor(StrainSensor& strainSensor) {
+    auto column_ = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(column_, 240, 240);
+    lv_obj_set_flex_flow(column_, LV_FLEX_FLOW_COLUMN);
+
+    static lv_style_t style_indic;
+    lv_style_init(&style_indic);
+    lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
+    lv_style_set_bg_color(&style_indic, lv_palette_main(LV_PALETTE_BLUE));
+    lv_style_set_bg_grad_color(&style_indic, lv_palette_main(LV_PALETTE_RED));
+    lv_style_set_bg_grad_dir(&style_indic, LV_GRAD_DIR_HOR);
+
+    lv_obj_t * label1 = lv_label_create(lv_scr_act());
+    lv_obj_set_style_text_color(label1, lv_color_black(), LV_PART_MAIN);
+    lv_label_set_long_mode(label1, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
+
+    lv_obj_set_width(label1, 200);  /*Set smaller width to make the lines wrap*/
+    lv_obj_set_style_text_align(label1, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(label1, LV_ALIGN_CENTER, 0, -40);
+
+    lv_label_set_text(label1, "Sample text");
+    lv_task_handler();
+
+    lv_obj_t * label2 = lv_label_create(lv_scr_act());
+    lv_label_set_long_mode(label2, LV_LABEL_LONG_WRAP); /* Break the long lines */
+    lv_obj_set_width(label2, 150);
+    lv_label_set_text(label2, "");
+    lv_obj_align(label2, LV_ALIGN_CENTER, 0, 40);
+
+    if (strainSensor.needsFirstTimeSetup()) {
+        lv_label_set_text(label1, "Calibrating noise value");
+        strainSensor.calibrateNoiseValue();
+        lv_label_set_text(label1, "Done calibrating noise value");
+
+        vTaskDelay(pdMS_TO_TICKS(300));
+        lv_label_set_text(label1, "Calibrating resting value");
+        strainSensor.calibrateValue(StrainSensor::RESTING);
+        lv_label_set_text(label1, "Done calibrating!");
+
+        vTaskDelay(pdMS_TO_TICKS(300));
+        lv_label_set_text(label1, "Calibrating light press value");
+        strainSensor.calibrateValue(StrainSensor::LIGHT_PRESS);
+        lv_label_set_text(label1, "Done calibrating!");
+
+        vTaskDelay(pdMS_TO_TICKS(300));
+        lv_label_set_text(label1, "Calibrating hard press value");
+        strainSensor.calibrateValue(StrainSensor::HARD_PRESS);
+        lv_label_set_text(label1, "Done calibrating!");
+
+        strainSensor.saveConfig();
+        vTaskDelay(pdMS_TO_TICKS(300));
+    }
+
+    lv_obj_delete_async(label1);
+    lv_obj_delete_async(label2);
+}
 
 [[noreturn]] void startSmartknob(void) {
     ringLights::RingLights ringLights;
     LightSensor            lightSensor;
     MagneticEncoder        magneticEncoder;
     MotorDriver            motorDriver;
+    StrainSensor           strainSensor;
 
     DisplayDriver::Config displayConfig{
             .display_dc        = GPIO_NUM_16,
@@ -46,6 +104,7 @@ void lvgl_task(void*) {
     sdk::Manager::addComponent(ringLights);
     sdk::Manager::addComponent(lightSensor);
 	sdk::Manager::addComponent(magneticEncoder);
+	sdk::Manager::addComponent(strainSensor);
     sdk::Manager::addComponent(displayDriver);
 
     sdk::Manager::start();
@@ -81,12 +140,12 @@ void lvgl_task(void*) {
 
     motorDriver.setDetentConfig(espp::detail::COARSE_VALUES_STRONG_DETENTS, 16);
 
-    displayDriver.setBrightness(255);
-
     msg.primaryColor = {.hue = HUE_BLUE, .saturation = 255, .value = 200};
     msg.effect = ringLights::POINTER;
 
     xTaskCreatePinnedToCore(lvgl_task, "LVGL", 4096, NULL, 24, NULL, 0);
+
+    calibrateStrainSensor(strainSensor);
 
     size_t count = 0;
     for (;;) {
@@ -104,6 +163,8 @@ void lvgl_task(void*) {
             ESP_LOGI("main", "raw encoder degrees: %lf", magneticEncoder.getDevice()->get()->get_degrees());
 
             ESP_LOGI("main", "current haptics position: %f", motorDriver.getPosition());
+
+            ESP_LOGI("main", "strain level: %ld", strainSensor.readStrainLevel().value_or(INT32_MAX));
 
             count = 0;
         }
