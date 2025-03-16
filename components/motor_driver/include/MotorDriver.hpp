@@ -48,7 +48,7 @@ public:
     float getPosition() const { return m_haptics->get_position(); };
 
 private:
-    static const inline char TAG[] = "Magnetic encoder";
+    static const inline char TAG[] = "Motor driver";
 
     /**
     * @brief Sets the motor control type, also disables de motor momentarily
