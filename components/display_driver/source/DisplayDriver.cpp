@@ -18,7 +18,7 @@
         }                                                              \
     } while (0)
 
-using Pixel = lv_color16_t;
+using Pixel   = lv_color16_t;
 using Display = espp::Display<Pixel>;
 
 static spi_device_handle_t spi;
@@ -63,15 +63,21 @@ static void IRAM_ATTR displaySpiPostTransfer(spi_transaction_t* t) {
     }
 }
 
-extern "C" void IRAM_ATTR displayWrite(const uint8_t* data, size_t length, uint32_t user_data) {
-    if (length == 0) {
-        return;
+extern "C" void IRAM_ATTR writeCommand(uint8_t command, std::span<const uint8_t> parameters, uint32_t user_data) {
+    static spi_transaction_t t {};
+    // Prepare command transaction
+    t.length                   = 8;
+    t.tx_buffer                = &command;
+    t.user                     = reinterpret_cast<void*>(user_data);
+    if (!parameters.empty()) {
+        // First send the command
+        spi_device_polling_transmit(spi, &t);
+        // Prepare the parameter transaction
+        t.length    = parameters.size() * 8;
+        t.tx_buffer = parameters.data();
+        t.user      = reinterpret_cast<void*>(
+                user_data | (1 << static_cast<int>(espp::display_drivers::Flags::DC_LEVEL_BIT)));
     }
-    static spi_transaction_t t;
-    memset(&t, 0, sizeof(t));
-    t.length    = length * 8;
-    t.tx_buffer = data;
-    t.user      = (void*) user_data;
     spi_device_polling_transmit(spi, &t);
 }
 
@@ -92,7 +98,7 @@ void DisplayDriver::waitForLines() {
 }
 
 void DisplayDriver::sendLines(int xs, int ys, int xe, int ye, const uint8_t* data,
-                                uint32_t user_data) {
+                              uint32_t user_data) {
     // if we haven't waited by now, wait here...
     waitForLines();
     esp_err_t ret;
@@ -196,7 +202,7 @@ Status DisplayDriver::initialize() {
 
     // initialize the controller
     espp::Gc9a01::initialize(espp::display_drivers::Config{
-            .lcd_write        = displayWrite,
+            .write_command    = writeCommand,
             .lcd_send_lines   = sendLines,
             .reset_pin        = m_config.display_reset,
             .data_command_pin = m_config.display_dc,
@@ -208,29 +214,28 @@ Status DisplayDriver::initialize() {
             .mirror_y         = false,
     });
 
-    auto displayConfig = Display::NonAllocatingConfig{
-            .vram0                     = frameBuffer_0,
-            .vram1                     = frameBuffer_1,
-            .width                     = CONFIG_DISPLAY_WIDTH,
-            .height                    = CONFIG_DISPLAY_HEIGHT,
-            .pixel_buffer_size         = PIXEL_BUFFER_SIZE,
-            .flush_callback            = espp::Gc9a01::flush,
-            .rotation_callback         = espp::Gc9a01::rotate,
-            .backlight_pin             = m_config.display_backlight,
-            .backlight_on_value        = BACKLIGHT_ON_VALUE,
-            .rotation                  = static_cast<espp::DisplayRotation>(m_config.rotation),
-            .software_rotation_enabled = true};
+    auto lvglConf = Display::LvglConfig{
+            .width             = CONFIG_DISPLAY_WIDTH,
+            .height            = CONFIG_DISPLAY_HEIGHT,
+            .flush_callback    = espp::Gc9a01::flush,
+            .rotation_callback = espp::Gc9a01::rotate,
+            .rotation          = static_cast<espp::DisplayRotation>(m_config.rotation)};
+    auto lcdConfig = Display::LcdConfig{
+            .backlight_pin      = m_config.display_backlight,
+            .backlight_on_value = BACKLIGHT_ON_VALUE};
+    auto memConf = Display::StaticMemoryConfig{
+            .pixel_buffer_size = PIXEL_BUFFER_SIZE,
+            .vram0             = frameBuffer_0,
+            .vram1             = frameBuffer_1};
 
-    p_display = std::make_unique<Display>(displayConfig);
+    p_display = std::make_unique<Display>(lvglConf, lcdConfig, memConf);
 
     m_initialized = true;
     ESP_LOGD(TAG, "Finished initializing display driver");
     return m_status = Status::RUNNING;
 }
 
-void DisplayDriver::setBrightness(uint8_t brightness) {
-    p_display->set_brightness(brightness / 255.0f);
-}
+void DisplayDriver::setBrightness(uint8_t brightness) { p_display->set_brightness(brightness / 255.0f); }
 
 Status DisplayDriver::run() {
     DisplayMsg displayMsg_;
