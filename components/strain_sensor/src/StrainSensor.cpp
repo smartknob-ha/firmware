@@ -64,6 +64,7 @@ Status StrainSensor::initialize() {
 
     if (const esp_err_t err = hx711_init(&m_hx711_dev)) {
         ESP_LOGE(TAG, "Failed to initalize hx711: %s", esp_err_to_name(err));
+        return m_status = Status::ERROR;
     }
 
     // Average filter resting value over 30 minutes
@@ -75,6 +76,7 @@ Status StrainSensor::initialize() {
 Status StrainSensor::stop() {
     if (const auto err = hx711_power_down(&m_hx711_dev, true)) {
         ESP_LOGE(TAG, "Failed to power down device: %s", esp_err_to_name(err));
+        return m_status = Status::ERROR;
     }
 
     return m_status = Status::STOPPED;
@@ -113,6 +115,7 @@ std::expected<StrainSensor::StrainState, std::error_code> StrainSensor::getPress
 
 std::expected<signed long, std::error_code> StrainSensor::readStrainLevel() {
     if (m_status != Status::RUNNING) {
+        ESP_LOGW(TAG, "Strain sensor not running");
         return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
     }
 
@@ -150,7 +153,7 @@ std::error_code StrainSensor::saveConfig() {
         return err;
     }
 
-    return std::make_error_code(ESP_OK);
+    return {};
 }
 
 std::error_code StrainSensor::resetConfig() {
@@ -159,7 +162,7 @@ std::error_code StrainSensor::resetConfig() {
         return err;
     }
 
-    return std::make_error_code(ESP_OK);
+    return {};
 }
 
 std::error_code StrainSensor::calibrateNoiseValue(bool save) {
@@ -188,7 +191,7 @@ std::error_code StrainSensor::calibrateNoiseValue(bool save) {
         return saveConfig();
     }
 
-    return std::make_error_code(ESP_OK);
+    return {};
 }
 
 std::expected<StrainSensor::CalibrationState, std::error_code> StrainSensor::getCalibrationState() {
