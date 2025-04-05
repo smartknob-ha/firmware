@@ -1,7 +1,7 @@
 menu "Smartknob light sensor"
    config LIGHT_SENSOR_SCL_GPIO_NUM
         int "SCL GPIO Num"
-        default 17
+        default 18
         help
             GPIO number for I2C Master clock line.
 

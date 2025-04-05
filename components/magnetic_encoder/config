@@ -7,7 +7,7 @@ menu "Smartknob magnetic encoder"
 
     config MAGNETIC_ENCODER_SPI_MISO_GPIO
         int "MISO GPIO Num"
-        default 2
+        default 21
         help
             GPIO number for magnetic encoder SPI MISO.
 
