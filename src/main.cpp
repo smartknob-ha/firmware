@@ -7,7 +7,7 @@
 #include "MagneticEncoder.hpp"
 #include "Manager.hpp"
 #include "MotorDriver.hpp"
-#include "RightLights.hpp"
+#include "RingLights.hpp"
 #include "StrainSensor.hpp"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
