@@ -116,10 +116,10 @@ std::expected<StrainSensor::StrainState, std::error_code> StrainSensor::getPress
 std::expected<signed long, std::error_code> StrainSensor::readStrainLevel() {
     if (m_status != Status::RUNNING) {
         ESP_LOGW(TAG, "Strain sensor not running");
-        return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
+        return std::unexpected(std::make_error_code(ESP_ERR_INVALID_STATE));
     }
 
-    if (const auto err = hx711_wait(&m_hx711_dev, 100)) {
+    if (const auto err = hx711_wait(&m_hx711_dev, 200)) {
         ESP_LOGE(TAG, "Failed wait for strain sensor: %s", esp_err_to_name(err));
         return std::unexpected(std::make_error_code(err));
     }
@@ -136,7 +136,7 @@ std::expected<signed long, std::error_code> StrainSensor::readStrainLevel() {
 std::expected<signed long, std::error_code> StrainSensor::readAverageStrainLevel(size_t samples) {
     signed long data;
     if (m_status != Status::RUNNING) {
-        return std::unexpected(std::make_error_code(static_cast<esp_err_t>(ESP_ERR_INVALID_STATE)));
+        return std::unexpected(std::make_error_code(ESP_ERR_INVALID_STATE));
     }
 
     if (const auto err = hx711_read_average(&m_hx711_dev, samples, &data)) {
